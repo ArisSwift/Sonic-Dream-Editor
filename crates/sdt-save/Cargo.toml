@@ -1,0 +1,14 @@
+[package]
+name = "sdt-save"
+description = "Read and write Sonic Dream Team (Project Dream PC port) save files"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+aes = { workspace = true }
+cbc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
