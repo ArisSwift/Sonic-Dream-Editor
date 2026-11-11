@@ -1,0 +1,18 @@
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+
+# Blender backups & caches
+*.blend1
+*.blend2
+.blend_cache/
+
+# Temp / local work
+tmp/
+*.log
