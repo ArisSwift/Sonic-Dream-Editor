@@ -23,7 +23,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 pub use container::{Container, ContainerError, Entry};
-pub use save::{GameSave, Progress, SaveError};
+pub use save::{thousands, GameSave, Progress, SaveError, XpAccount, XpTrack, XP_SCALE};
 
 /// File name of the authoritative save inside `PCSaveData`.
 pub const PRIMARY_FILE: &str = "PrimaryHL_Default_Save_ID";

@@ -31,9 +31,92 @@ pub struct Progress {
     pub ornaments_total: usize,
     pub music_seen: usize,
     pub music_total: usize,
-    pub blue_coins_spent: u64,
-    pub adventure_xp: u64,
+    /// What the save stores for blue coins: the spend counter, not the balance.
+    pub blue_coins_spent: i64,
+    /// The shared XP pool: earned, the three tracks' spends, and the balance.
+    pub xp: XpAccount,
     pub challenges_completed: u64,
+}
+
+/// The game stores reward-track XP split over two fields: the major one counts
+/// hundreds, the minor one the remainder. `total = major * 100 + minor`.
+pub const XP_SCALE: i64 = 100;
+
+/// Reward track type ids, as they appear in `m_type`.
+pub const TRACK_ADVENTURE: i64 = 632_844_063;
+pub const TRACK_OUTFITS: i64 = -1_400_767_250;
+pub const TRACK_SHADOW: i64 = 2_054_273_620;
+
+/// What one reward track has spent, in XP.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XpTrack {
+    pub name: String,
+    /// `m_spentXP * 100 + m_spentXPMinor`.
+    pub spent: i64,
+}
+
+/// The XP pool every reward track displays. All three tracks show the same
+/// balance: XP earned through story missions and challenges, minus the sum of
+/// what every track has spent.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct XpAccount {
+    /// `m_totalStoryMissionXpEarned`, a plain int.
+    pub story_earned: i64,
+    /// `m_totalXpEarned * 100 + m_totalXpEarnedMinor`.
+    pub challenge_earned: i64,
+    /// Bonus XP the player has not acknowledged yet; not part of the balance.
+    pub pending_bonus: i64,
+    pub tracks: Vec<XpTrack>,
+}
+
+impl XpAccount {
+    pub fn earned(&self) -> i64 {
+        self.story_earned + self.challenge_earned
+    }
+
+    pub fn spent(&self) -> i64 {
+        self.tracks.iter().map(|track| track.spent).sum()
+    }
+
+    /// The number the reward-track screen shows.
+    pub fn available(&self) -> i64 {
+        self.earned() - self.spent()
+    }
+
+    /// "Adventure 70,000 · Shadow 90,000 · Outfits 92,500".
+    pub fn spent_breakdown(&self) -> String {
+        self.tracks
+            .iter()
+            .map(|track| format!("{} {}", track.name, thousands(track.spent)))
+            .collect::<Vec<_>>()
+            .join(" · ")
+    }
+}
+
+/// `1234567` as `1,234,567`, so big numbers stay readable in the UI.
+pub fn thousands(value: i64) -> String {
+    let digits = value.unsigned_abs().to_string();
+    let mut out = String::new();
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    if value < 0 {
+        format!("-{out}")
+    } else {
+        out
+    }
+}
+
+fn track_name(kind: i64) -> String {
+    match kind {
+        TRACK_ADVENTURE => "Adventure".to_string(),
+        TRACK_OUTFITS => "Outfits".to_string(),
+        TRACK_SHADOW => "Shadow".to_string(),
+        other => format!("Track {other}"),
+    }
 }
 
 /// The game save, as stored in property `3294653793`.
@@ -111,14 +194,8 @@ impl GameSave {
             p.music_seen = tracks.iter().filter(|track| flag(track, "m_seen")).count();
         }
 
-        p.blue_coins_spent = self
-            .pointer("/m_blueCoins/m_spent")
-            .and_then(Value::as_u64)
-            .unwrap_or(0);
-        p.adventure_xp = self
-            .pointer("/m_adventureRewardTrack/m_spentXP")
-            .and_then(Value::as_u64)
-            .unwrap_or(0);
+        p.blue_coins_spent = self.blue_coins_spent();
+        p.xp = self.xp();
         p.challenges_completed = self
             .pointer("/m_challenges/m_challengesCompleted")
             .and_then(Value::as_u64)
@@ -201,12 +278,73 @@ impl GameSave {
         Ok(changed)
     }
 
-    pub fn set_blue_coins_spent(&mut self, value: u64) {
-        self.set_number("/m_blueCoins/m_spent", json!(value));
+    /// The save keeps only what has been spent: the game derives the balance from
+    /// the missions completed and subtracts this counter.
+    pub fn blue_coins_spent(&self) -> i64 {
+        self.pointer("/m_blueCoins/m_spent").and_then(Value::as_i64).unwrap_or(0)
     }
 
-    pub fn set_adventure_xp(&mut self, value: u64) {
-        self.set_number("/m_adventureRewardTrack/m_spentXP", json!(value));
+    /// Reward-track XP, read the way the game reads it: the Adventure track is
+    /// still in the legacy root field, Shadow and Outfits live in
+    /// `m_challenges.m_rewardTracks`. A track listed in both places is taken
+    /// from the list, which is the one the game writes.
+    pub fn xp(&self) -> XpAccount {
+        let mut tracks: Vec<XpTrack> = Vec::new();
+        for kind in [Some("/m_adventureRewardTrack"), Some("/m_challenges/m_rewardTracks")]
+            .into_iter()
+            .flatten()
+        {
+            let Some(node) = self.pointer(kind) else { continue };
+            let sources: Vec<&Value> = match node.as_array() {
+                Some(list) => list.iter().collect(),
+                None => vec![node],
+            };
+            for track in sources {
+                let kind = track.get("m_type").and_then(Value::as_i64).unwrap_or(0);
+                let spent = track.get("m_spentXP").and_then(Value::as_i64).unwrap_or(0) * XP_SCALE
+                    + track.get("m_spentXPMinor").and_then(Value::as_i64).unwrap_or(0);
+                match tracks.iter_mut().find(|known| known.name == track_name(kind)) {
+                    Some(known) => known.spent = spent,
+                    None => tracks.push(XpTrack { name: track_name(kind), spent }),
+                }
+            }
+        }
+
+        let challenges = self.pointer("/m_challenges");
+        let field = |key: &str| {
+            challenges
+                .and_then(|challenges| challenges.get(key))
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+        };
+
+        XpAccount {
+            story_earned: field("m_totalStoryMissionXpEarned"),
+            challenge_earned: field("m_totalXpEarned") * XP_SCALE + field("m_totalXpEarnedMinor"),
+            pending_bonus: field("m_bonusXpUnacknowledged"),
+            tracks,
+        }
+    }
+
+    /// Give `amount` XP (a negative amount takes it away) by raising what the
+    /// game counts as earned. The balance on every track moves by exactly
+    /// `amount`. Returns the new balance.
+    pub fn give_xp(&mut self, amount: i64) -> i64 {
+        let story = self
+            .xp()
+            .story_earned
+            .saturating_add(amount)
+            .clamp(i32::MIN as i64, i32::MAX as i64);
+        self.set_number("/m_challenges/m_totalStoryMissionXpEarned", json!(story));
+        self.xp().available()
+    }
+
+    /// Give `amount` blue coins to the balance (a negative amount takes them away)
+    /// by moving the spend counter the other way. Returns the new counter.
+    pub fn give_blue_coins(&mut self, amount: i64) -> i64 {
+        let spent = (self.blue_coins_spent() - amount).clamp(i32::MIN as i64, i32::MAX as i64);
+        self.set_number("/m_blueCoins/m_spent", json!(spent));
+        spent
     }
 
     /// Write any JSON value at an RFC 6901 pointer, creating nothing that does not exist.
@@ -308,10 +446,25 @@ mod tests {
         "m_ornaments": [{"m_guid": "o1", "m_unlocked": false}],
         "m_musicTracks": [{"m_guid": "t1", "m_seen": false}],
         "m_blueCoins": {"m_guid": "", "m_spent": 230},
-        "m_adventureRewardTrack": {"m_spentXP": 650, "m_rewards": [
-            {"m_trackGUID": "x", "m_rewardGUID": "y", "m_collected": false}
-        ]},
-        "m_challenges": {"m_challengesCompleted": 6}
+        "m_adventureRewardTrack": {
+            "m_type": 632844063,
+            "m_spentXP": 700,
+            "m_spentXPMinor": 0,
+            "m_rewards": [
+                {"m_trackGUID": "x", "m_rewardGUID": "y", "m_collected": false}
+            ]
+        },
+        "m_challenges": {
+            "m_challengesCompleted": 6,
+            "m_totalXpEarned": 782,
+            "m_totalXpEarnedMinor": 20,
+            "m_totalStoryMissionXpEarned": 176500,
+            "m_bonusXpUnacknowledged": 10000,
+            "m_rewardTracks": [
+                {"m_type": 2054273620, "m_spentXP": 900, "m_spentXPMinor": 0, "m_rewards": []},
+                {"m_type": -1400767250, "m_spentXP": 925, "m_spentXPMinor": 50, "m_rewards": []}
+            ]
+        }
     }"#;
 
     #[test]
@@ -327,8 +480,50 @@ mod tests {
         assert_eq!(p.skins_total, 2);
         assert_eq!(p.skins_unlocked, 1);
         assert_eq!(p.blue_coins_spent, 230);
-        assert_eq!(p.adventure_xp, 650);
         assert_eq!(p.challenges_completed, 6);
+        // 782*100 + 20 + 176,500 earned; 70,000 + 90,000 + 92,550 spent.
+        assert_eq!(p.xp.earned(), 254_720);
+        assert_eq!(p.xp.spent(), 252_550);
+        assert_eq!(p.xp.available(), 2_170);
+        assert_eq!(p.xp.pending_bonus, 10_000);
+        assert_eq!(p.xp.tracks.len(), 3);
+        assert_eq!(p.xp.spent_breakdown(), "Adventure 70,000 · Shadow 90,000 · Outfits 92,550");
+    }
+
+    #[test]
+    fn giving_xp_raises_the_shared_balance() {
+        let mut save = GameSave::parse(SAMPLE).unwrap();
+        assert_eq!(save.give_xp(10_000), 12_170);
+        assert_eq!(save.progress().xp.available(), 12_170);
+        // Only the earned side moves; the tracks keep what they spent.
+        assert_eq!(save.progress().xp.spent(), 252_550);
+        assert_eq!(save.progress().xp.story_earned, 186_500);
+
+        assert_eq!(save.give_xp(-12_170), 0);
+        assert_eq!(save.give_xp(-1), -1);
+    }
+
+    #[test]
+    fn the_newer_track_entry_wins_over_the_legacy_root() {
+        let mut save = GameSave::parse(SAMPLE).unwrap();
+        save.root_mut()
+            .pointer_mut("/m_challenges/m_rewardTracks")
+            .unwrap()
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"m_type": 632844063, "m_spentXP": 1, "m_spentXPMinor": 5, "m_rewards": []}));
+        let xp = save.xp();
+        assert_eq!(xp.tracks.len(), 3, "the same track is not counted twice");
+        assert_eq!(xp.spent(), 105 + 90_000 + 92_550);
+    }
+
+    #[test]
+    fn thousands_separates_digits() {
+        assert_eq!(thousands(0), "0");
+        assert_eq!(thousands(999), "999");
+        assert_eq!(thousands(1_000), "1,000");
+        assert_eq!(thousands(254_720), "254,720");
+        assert_eq!(thousands(-1_234_567), "-1,234,567");
     }
 
     #[test]

@@ -9,7 +9,7 @@
 //! previous version as `<name>-backup`.
 
 use raven::*;
-use sdt_save::{GameSave, SaveFile, PRIMARY_FILE};
+use sdt_save::{thousands, GameSave, SaveFile, PRIMARY_FILE};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -100,6 +100,26 @@ fn self_test(path: &str) {
     }
     let path = copy.to_str().expect("a temporary path is valid UTF-8");
 
+    // Leave exactly one skin locked so the unlock action has something to do,
+    // whatever state the save is in.
+    if let Ok(mut file) = SaveFile::load(path) {
+        if let Ok(mut game) = file.game_save() {
+            if let Some(skins) = game
+                .root_mut()
+                .get_mut("m_characterSkins")
+                .and_then(|skins| skins.as_array_mut())
+            {
+                for skin in skins.iter_mut() {
+                    skin["m_unlocked"] = serde_json::json!(true);
+                }
+                if let Some(first) = skins.first_mut() {
+                    first["m_unlocked"] = serde_json::json!(false);
+                }
+            }
+            let _ = file.set_game_save(&game).and_then(|()| file.write_atomic(path));
+        }
+    }
+
     let Some(state) = start(true) else { std::process::exit(1) };
     let mut failures: Vec<String> = Vec::new();
     let mut check = |ok: bool, what: &str| {
@@ -118,11 +138,48 @@ fn self_test(path: &str) {
     let after = skins_unlocked(&state.borrow());
     check(after.0 == after.1, "every skin unlocked in memory");
 
-    set_input(&state.borrow(), "xp", "4242");
-    fire("setXp");
+    let coins_before = section(&state.borrow(), "m_blueCoins")["m_spent"]
+        .as_i64()
+        .unwrap_or(0);
+    // The JSON pane is toggled by Raven's builtin action, from the XML button.
+    let pane = { widget_find(state.borrow().window, "jsonPane") };
+    unsafe { Raction_fire(cstr("toggle:jsonPane").as_ptr(), state.borrow().window) };
     check(
-        section(&state.borrow(), "m_adventureRewardTrack")["m_spentXP"] == 4242,
-        "adventure XP set",
+        unsafe { Rwidget_get_visibility(pane) } == R_COLLAPSED,
+        "the JSON pane hides",
+    );
+    unsafe { Raction_fire(cstr("toggle:jsonPane").as_ptr(), state.borrow().window) };
+    check(
+        unsafe { Rwidget_get_visibility(pane) } == R_VISIBLE,
+        "the JSON pane comes back",
+    );
+
+    set_input(&state.borrow(), "coinDelta", "100");
+    fire("addCoins");
+    let coins_after = section(&state.borrow(), "m_blueCoins")["m_spent"]
+        .as_i64()
+        .unwrap_or(0);
+    check(coins_after == coins_before - 100, "giving 100 coins lowers the spend counter");
+
+    let xp_before = section(&state.borrow(), "m_challenges")["m_totalStoryMissionXpEarned"]
+        .as_i64()
+        .unwrap_or(0);
+    set_input(&state.borrow(), "xpDelta", "10,000");
+    fire("addXp");
+    let xp_after = section(&state.borrow(), "m_challenges")["m_totalStoryMissionXpEarned"]
+        .as_i64()
+        .unwrap_or(0);
+    check(
+        xp_after == xp_before + 10_000,
+        "giving XP raises the earned total the game reads",
+    );
+    let available = {
+        let state = state.borrow();
+        state.game.as_ref().map(|game| game.xp().available()).unwrap_or(0)
+    };
+    check(
+        label_text(&state.borrow(), "xpAvailable") == thousands(available),
+        "the balance label matches the save",
     );
 
     fire("save");
@@ -133,7 +190,8 @@ fn self_test(path: &str) {
         Ok(file) => {
             let progress = file.game_save().map(|game| game.progress()).unwrap_or_default();
             check(progress.skins_unlocked == progress.skins_total, "skins persisted");
-            check(progress.adventure_xp == 4242, "XP persisted");
+            check(progress.blue_coins_spent == coins_before - 100, "coins persisted");
+            check(progress.xp.story_earned == xp_before + 10_000, "XP persisted");
             check(
                 sdt_save::backup_path(std::path::Path::new(path)).is_file(),
                 "previous version kept as -backup",
@@ -204,8 +262,8 @@ fn bind_actions(state: &Rc<RefCell<State>>) {
     on!("save", save);
     on!("applyJson", apply_json);
     on!("refreshJson", refresh);
-    on!("setXp", set_xp);
-    on!("setCoins", set_coins);
+    on!("addXp", add_xp);
+    on!("addCoins", add_coins);
     on!("unlockSkins", unlock_skins);
     on!("unlockPowers", unlock_powers);
     on!("unlockCollectibles", unlock_collectibles);
@@ -279,8 +337,15 @@ fn refresh(state: &Rc<RefCell<State>>) {
     set_label(&state, "statOrnaments", &count(progress.ornaments_unlocked, progress.ornaments_total));
     set_label(&state, "statMusic", &count(progress.music_seen, progress.music_total));
     set_label(&state, "statChallenges", &progress.challenges_completed.to_string());
-    set_input(&state, "xp", &progress.adventure_xp.to_string());
-    set_input(&state, "coins", &progress.blue_coins_spent.to_string());
+    set_label(&state, "xpAvailable", &thousands(progress.xp.available()));
+    set_label(&state, "xpEarned", &thousands(progress.xp.earned()));
+    set_label(&state, "xpSpent", &thousands(progress.xp.spent()));
+    set_label(&state, "coinsSpent", &thousands(progress.blue_coins_spent));
+    set_label(
+        &state,
+        "xpTracks",
+        &format!("Spent per track: {}", progress.xp.spent_breakdown()),
+    );
     set_json(&state, &json);
     set_label(&state, "dirty", if dirty { "● unsaved changes" } else { "" });
 }
@@ -389,45 +454,61 @@ fn apply_json(state: &Rc<RefCell<State>>) {
     }
 }
 
-fn set_xp(state: &Rc<RefCell<State>>) {
-    set_number(state, "xp");
+fn add_xp(state: &Rc<RefCell<State>>) {
+    give(state, "xpDelta", false);
 }
 
-fn set_coins(state: &Rc<RefCell<State>>) {
-    set_number(state, "coins");
+fn add_coins(state: &Rc<RefCell<State>>) {
+    give(state, "coinDelta", true);
 }
 
-fn set_number(state: &Rc<RefCell<State>>, field: &str) {
+/// XP is given by raising what the game counts as earned. Blue coins go the
+/// other way: the save only keeps the spend counter, so giving coins lowers it.
+fn give(state: &Rc<RefCell<State>>, field: &str, coins: bool) {
+    let raw = input_text(&state.borrow(), field);
+    let amount = match raw.trim().replace([',', '_'], "").parse::<i64>() {
+        Ok(amount) if amount != 0 => amount,
+        Ok(_) => return status_of(state, "Enter a number of coins or XP to give (negative takes them away)."),
+        Err(_) => return status_of(state, &format!("{raw:?} is not a whole number.")),
+    };
     if let Err(message) = sync_json(state) {
         return status_of(state, &message);
     }
-    let raw = input_text(&state.borrow(), field);
-    let Ok(value) = raw.trim().parse::<u64>() else {
-        return status_of(state, &format!("{raw:?} is not a whole number."));
-    };
 
-    let applied = {
+    let outcome = {
         let mut state = state.borrow_mut();
-        if state.game.is_none() {
-            false
-        } else {
-            let game = state.game.as_mut().unwrap();
-            if field == "xp" {
-                game.set_adventure_xp(value);
+        let result = state.game.as_mut().map(|game| {
+            if coins {
+                game.give_blue_coins(amount)
             } else {
-                game.set_blue_coins_spent(value);
+                game.give_xp(amount)
             }
-            true
+        });
+        if result.is_some() {
+            state.dirty = true;
         }
+        result
     };
-    if !applied {
-        return status_of(state, "No save loaded.");
-    }
-    state.borrow_mut().dirty = true;
 
+    let Some(now) = outcome else {
+        return status_of(state, "No save loaded.");
+    };
+    set_input(&state.borrow(), field, "");
     refresh(state);
-    let what = if field == "xp" { "Adventure XP" } else { "blue coins spent" };
-    status_of(state, &format!("Set {what} to {value}."));
+    let message = if coins {
+        format!(
+            "Gave {} blue coins. The spend counter is now {}; save to keep it.",
+            thousands(amount),
+            thousands(now)
+        )
+    } else {
+        format!(
+            "Gave {} XP. The balance is now {}; save to keep it.",
+            thousands(amount),
+            thousands(now)
+        )
+    };
+    status_of(state, &message);
 }
 
 fn unlock_skins(state: &Rc<RefCell<State>>) {

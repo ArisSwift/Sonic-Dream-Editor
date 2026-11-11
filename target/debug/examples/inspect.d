@@ -1,1 +1,0 @@
-/mnt/arizen/Mods/Sonic\ Dream\ Team/target/debug/examples/inspect: /mnt/arizen/Mods/Sonic\ Dream\ Team/crates/sdt-save/examples/inspect.rs /mnt/arizen/Mods/Sonic\ Dream\ Team/crates/sdt-save/src/container.rs /mnt/arizen/Mods/Sonic\ Dream\ Team/crates/sdt-save/src/lib.rs /mnt/arizen/Mods/Sonic\ Dream\ Team/crates/sdt-save/src/save.rs

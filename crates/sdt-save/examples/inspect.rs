@@ -38,7 +38,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("ornaments       : {}/{}", progress.ornaments_unlocked, progress.ornaments_total);
     println!("music tracks    : {}/{}", progress.music_seen, progress.music_total);
     println!("blue coins spent: {}", progress.blue_coins_spent);
-    println!("adventure xp    : {}", progress.adventure_xp);
+    println!("xp earned       : {}", progress.xp.earned());
+    println!("xp spent        : {} ({})", progress.xp.spent(), progress.xp.spent_breakdown());
+    println!("xp available    : {}", progress.xp.available());
     println!("challenges      : {}", progress.challenges_completed);
 
     // The JSON must survive a parse/serialise cycle without changing meaning.

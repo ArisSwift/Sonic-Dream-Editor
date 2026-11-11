@@ -5,6 +5,7 @@
         <HBox Spacing="8">
             <TextInput Name="path" Placeholder="Path to PCSaveData/PrimaryHL_Default_Save_ID" Slot.Fill="1"/>
             <Button Text="Load" OnClicked="load"/>
+            <Button Text="JSON" Style="Flat" OnClicked="toggle:jsonPane"/>
             <Button Text="Save" Style="Primary" OnClicked="save"/>
         </HBox>
         <Label Text="Edits go straight into the file the game reads. The previous version is kept beside it as -backup."
@@ -39,16 +40,32 @@
                     </Grid>
 
                     <Separator/>
-                    <Label Text="**Set a value**" Markdown="true" TextSize="18"/>
+                    <Label Text="**Currencies**" Markdown="true" TextSize="18"/>
+                    <Label Text="XP is one shared pool that all three tracks show: what story missions and challenges earned, minus what the tracks have spent. Blue coins work the same way, but the save only keeps the spend counter."
+                           TextSize="12" Opacity="0.6" Wrap="true"/>
+                    <Grid Columns="auto,1" Spacing="6">
+                        <Label Text="XP available" Slot.Column="0" Slot.Row="0"/>
+                        <Label Name="xpAvailable" Text="—" Slot.Column="1" Slot.Row="0" Slot.HAlign="Right"/>
+
+                        <Label Text="XP earned" Slot.Column="0" Slot.Row="1"/>
+                        <Label Name="xpEarned" Text="—" Slot.Column="1" Slot.Row="1" Slot.HAlign="Right"/>
+
+                        <Label Text="XP spent" Slot.Column="0" Slot.Row="2"/>
+                        <Label Name="xpSpent" Text="—" Slot.Column="1" Slot.Row="2" Slot.HAlign="Right"/>
+
+                        <Label Text="Blue coins spent" Slot.Column="0" Slot.Row="3"/>
+                        <Label Name="coinsSpent" Text="—" Slot.Column="1" Slot.Row="3" Slot.HAlign="Right"/>
+                    </Grid>
+                    <Label Name="xpTracks" Text="" TextSize="12" Opacity="0.6" Wrap="true"/>
                     <HBox Spacing="8">
-                        <Label Text="Adventure XP" Width="130" Slot.VAlign="Center"/>
-                        <TextInput Name="xp" Slot.Fill="1"/>
-                        <Button Text="Set" OnClicked="setXp"/>
+                        <Label Text="Give XP" Width="130" Slot.VAlign="Center"/>
+                        <TextInput Name="xpDelta" Placeholder="+10000" Slot.Fill="1"/>
+                        <Button Text="Apply" OnClicked="addXp"/>
                     </HBox>
                     <HBox Spacing="8">
-                        <Label Text="Blue coins spent" Width="130" Slot.VAlign="Center"/>
-                        <TextInput Name="coins" Slot.Fill="1"/>
-                        <Button Text="Set" OnClicked="setCoins"/>
+                        <Label Text="Give blue coins" Width="130" Slot.VAlign="Center"/>
+                        <TextInput Name="coinDelta" Placeholder="+250" Slot.Fill="1"/>
+                        <Button Text="Apply" OnClicked="addCoins"/>
                     </HBox>
 
                     <Separator/>
@@ -66,7 +83,7 @@
                 </VBox>
             </ScrollBox>
 
-            <VBox Slot.Fill="3" Spacing="8">
+            <VBox Name="jsonPane" Slot.Fill="3" Spacing="8">
                 <HBox Spacing="8">
                     <Label Text="Game save JSON" Slot.Fill="1" Slot.VAlign="Center"/>
                     <Button Text="Apply JSON" OnClicked="applyJson"/>
