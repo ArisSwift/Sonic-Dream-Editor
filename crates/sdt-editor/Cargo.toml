@@ -1,0 +1,18 @@
+[package]
+name = "sdt-editor"
+description = "Raven based save editor for Sonic Dream Team (Project Dream PC port)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "sdt-editor"
+path = "src/main.rs"
+
+[dependencies]
+sdt-save = { path = "../sdt-save" }
+serde_json = { workspace = true }
+# Raven is built from source; point RAVEN_LIB_DIR at the build folder that holds
+# libraven.so (or raven.dll) when compiling.
+raven-gui = { path = "/mnt/arizen/Github/Raven/bindings/rust" }

@@ -151,6 +151,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "raven-gui"
+version = "0.2.2"
+
+[[package]]
+name = "sdt-editor"
+version = "0.1.0"
+dependencies = [
+ "raven-gui",
+ "sdt-save",
+ "serde_json",
+]
+
+[[package]]
 name = "sdt-save"
 version = "0.1.0"
 dependencies = [

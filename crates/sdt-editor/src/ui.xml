@@ -1,0 +1,86 @@
+<Window Title="Dream Save Editor — Sonic Dream Team" Width="1120" Height="760">
+    <Shortcut Keys="Ctrl+O" Action="load"/>
+    <Shortcut Keys="Ctrl+S" Action="save"/>
+    <VBox Spacing="10" Slot.Padding="14">
+        <HBox Spacing="8">
+            <TextInput Name="path" Placeholder="Path to PCSaveData/PrimaryHL_Default_Save_ID" Slot.Fill="1"/>
+            <Button Text="Load" OnClicked="load"/>
+            <Button Text="Save" Style="Primary" OnClicked="save"/>
+        </HBox>
+        <Label Text="Edits go straight into the file the game reads. The previous version is kept beside it as -backup."
+               TextSize="12" Opacity="0.6"/>
+        <Separator/>
+
+        <Splitter Orientation="Horizontal" Slot.Fill="1" MinPaneSize="320">
+            <ScrollBox Slot.Fill="2" Spacing="12" Slot.Padding="0,0,12,0">
+                <VBox Spacing="10">
+                    <Label Text="**Progression**" Markdown="true" TextSize="18"/>
+                    <Grid Columns="auto,1" Spacing="6">
+                        <Label Text="Missions complete" Slot.Column="0" Slot.Row="0"/>
+                        <Label Name="statMissions" Text="—" Slot.Column="1" Slot.Row="0" Slot.HAlign="Right"/>
+
+                        <Label Text="Levels complete" Slot.Column="0" Slot.Row="1"/>
+                        <Label Name="statLevels" Text="—" Slot.Column="1" Slot.Row="1" Slot.HAlign="Right"/>
+
+                        <Label Text="Dream powers" Slot.Column="0" Slot.Row="2"/>
+                        <Label Name="statPowers" Text="—" Slot.Column="1" Slot.Row="2" Slot.HAlign="Right"/>
+
+                        <Label Text="Character skins" Slot.Column="0" Slot.Row="3"/>
+                        <Label Name="statSkins" Text="—" Slot.Column="1" Slot.Row="3" Slot.HAlign="Right"/>
+
+                        <Label Text="Ornaments" Slot.Column="0" Slot.Row="4"/>
+                        <Label Name="statOrnaments" Text="—" Slot.Column="1" Slot.Row="4" Slot.HAlign="Right"/>
+
+                        <Label Text="Music tracks" Slot.Column="0" Slot.Row="5"/>
+                        <Label Name="statMusic" Text="—" Slot.Column="1" Slot.Row="5" Slot.HAlign="Right"/>
+
+                        <Label Text="Challenges done" Slot.Column="0" Slot.Row="6"/>
+                        <Label Name="statChallenges" Text="—" Slot.Column="1" Slot.Row="6" Slot.HAlign="Right"/>
+                    </Grid>
+
+                    <Separator/>
+                    <Label Text="**Set a value**" Markdown="true" TextSize="18"/>
+                    <HBox Spacing="8">
+                        <Label Text="Adventure XP" Width="130" Slot.VAlign="Center"/>
+                        <TextInput Name="xp" Slot.Fill="1"/>
+                        <Button Text="Set" OnClicked="setXp"/>
+                    </HBox>
+                    <HBox Spacing="8">
+                        <Label Text="Blue coins spent" Width="130" Slot.VAlign="Center"/>
+                        <TextInput Name="coins" Slot.Fill="1"/>
+                        <Button Text="Set" OnClicked="setCoins"/>
+                    </HBox>
+
+                    <Separator/>
+                    <Label Text="**Unlock everything**" Markdown="true" TextSize="18"/>
+                    <Grid Columns="1,1" Spacing="8">
+                        <Button Text="Unlock skins" OnClicked="unlockSkins" Slot.Column="0" Slot.Row="0"/>
+                        <Button Text="Unlock dream powers" OnClicked="unlockPowers" Slot.Column="1" Slot.Row="0"/>
+
+                        <Button Text="Unlock ornaments and music" OnClicked="unlockCollectibles" Slot.Column="0" Slot.Row="1"/>
+                        <Button Text="Complete all missions" OnClicked="completeMissions" Slot.Column="1" Slot.Row="1"/>
+
+                        <Button Text="Collect all rewards" OnClicked="collectRewards" Slot.Column="0" Slot.Row="2"/>
+                        <Button Text="Reset missions" Style="Flat" OnClicked="resetMissions" Slot.Column="1" Slot.Row="2"/>
+                    </Grid>
+                </VBox>
+            </ScrollBox>
+
+            <VBox Slot.Fill="3" Spacing="8">
+                <HBox Spacing="8">
+                    <Label Text="Game save JSON" Slot.Fill="1" Slot.VAlign="Center"/>
+                    <Button Text="Apply JSON" OnClicked="applyJson"/>
+                    <Button Text="Refresh" OnClicked="refreshJson"/>
+                </HBox>
+                <TextEditor Name="json" Language="JSON" Slot.Fill="1"
+                            Placeholder="Load a save to see the game's JSON here"/>
+            </VBox>
+        </Splitter>
+
+        <Separator/>
+        <HBox Spacing="8">
+            <Label Name="status" Text="No save loaded." Slot.Fill="1" Opacity="0.85"/>
+            <Label Name="dirty" Text="" Opacity="0.85"/>
+        </HBox>
+    </VBox>
+</Window>

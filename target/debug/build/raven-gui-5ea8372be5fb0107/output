@@ -1,0 +1,4 @@
+cargo:rerun-if-env-changed=RAVEN_LIB_DIR
+cargo:rerun-if-env-changed=RAVEN_STATIC
+cargo:rustc-link-search=native=/mnt/arizen/Github/Raven/build
+cargo:rustc-link-lib=dylib=raven

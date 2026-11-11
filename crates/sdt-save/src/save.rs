@@ -55,6 +55,12 @@ impl GameSave {
         self.root.to_string()
     }
 
+    /// The same JSON, indented for a human to read. `to_json` keeps the compact
+    /// form the game writes, which is what goes back into the save.
+    pub fn to_json_pretty(&self) -> String {
+        serde_json::to_string_pretty(&self.root).unwrap_or_else(|_| self.to_json())
+    }
+
     pub fn root(&self) -> &Value {
         &self.root
     }
@@ -173,10 +179,26 @@ impl GameSave {
         Ok(changed)
     }
 
-    /// Collect (or un-collect) every unlocked reward-track reward.
-    pub fn set_reward_track_collected(&mut self, collected: bool) -> Result<usize, SaveError> {
-        let rewards = self.array_mut("m_adventureRewardTrack/m_rewards")?;
-        Ok(set_flag(rewards, "m_collected", collected))
+    /// Collect (or un-collect) every reward of the adventure track and of the
+    /// challenge tracks.
+    pub fn set_all_rewards_collected(&mut self, collected: bool) -> Result<usize, SaveError> {
+        let mut changed = set_flag(
+            self.array_mut("m_adventureRewardTrack/m_rewards")?,
+            "m_collected",
+            collected,
+        );
+        if let Some(tracks) = self
+            .root
+            .pointer_mut("/m_challenges/m_rewardTracks")
+            .and_then(Value::as_array_mut)
+        {
+            for track in tracks {
+                if let Some(rewards) = track.get_mut("m_rewards").and_then(Value::as_array_mut) {
+                    changed += set_flag(rewards, "m_collected", collected);
+                }
+            }
+        }
+        Ok(changed)
     }
 
     pub fn set_blue_coins_spent(&mut self, value: u64) {
@@ -327,6 +349,27 @@ mod tests {
         assert_eq!(save.progress().levels_complete, 2);
         assert_eq!(save.set_all_missions_complete(false).unwrap(), 3);
         assert_eq!(save.progress().missions_complete, 0);
+    }
+
+    #[test]
+    fn collects_every_reward_of_both_tracks() {
+        let mut save = GameSave::parse(SAMPLE).unwrap();
+        save.root_mut().as_object_mut().unwrap().insert(
+            "m_challenges".into(),
+            json!({
+                "m_challengesCompleted": 6,
+                "m_rewardTracks": [
+                    {"m_rewards": [{"m_rewardGUID": "a", "m_collected": false}]},
+                    {"m_rewards": [{"m_rewardGUID": "b", "m_collected": false}]}
+                ]
+            }),
+        );
+        assert_eq!(save.set_all_rewards_collected(true).unwrap(), 3);
+        assert_eq!(save.set_all_rewards_collected(true).unwrap(), 0);
+
+        let root = save.root();
+        assert_eq!(root["m_adventureRewardTrack"]["m_rewards"][0]["m_collected"], json!(true));
+        assert_eq!(root["m_challenges"]["m_rewardTracks"][1]["m_rewards"][0]["m_collected"], json!(true));
     }
 
     #[test]

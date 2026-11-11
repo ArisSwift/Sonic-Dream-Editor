@@ -73,27 +73,17 @@ impl Entry {
     }
 }
 
-/// A decoded save container. Order, ids and the exact amount of zero padding are
-/// preserved so that re-encoding an untouched container reproduces the file byte for byte.
-#[derive(Debug, Clone)]
+/// A decoded save container. Order and ids are preserved so that re-encoding an
+/// untouched container reproduces the file byte for byte.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Container {
     pub file_type: u32,
     pub entries: Vec<Entry>,
-    padding: usize,
 }
-
-/// Equality compares the logical content; the zero padding is encoding detail.
-impl PartialEq for Container {
-    fn eq(&self, other: &Self) -> bool {
-        self.file_type == other.file_type && self.entries == other.entries
-    }
-}
-
-impl Eq for Container {}
 
 impl Container {
     pub fn new(file_type: u32, entries: Vec<Entry>) -> Self {
-        Self { file_type, entries, padding: 0 }
+        Self { file_type, entries }
     }
 
     pub fn get(&self, id: u32) -> Option<&str> {
@@ -114,7 +104,7 @@ impl Container {
 
     /// Decode the plaintext body of a save file (without the length prefix).
     pub fn from_plaintext(plaintext: &[u8]) -> Result<Self, ContainerError> {
-        let (body, padding) = split_padding(plaintext);
+        let body = without_padding(plaintext);
         let text = std::str::from_utf8(body).map_err(|_| ContainerError::NotUtf8)?;
         let mut lines = text.split('\n');
 
@@ -134,10 +124,10 @@ impl Container {
             return Err(ContainerError::Malformed("trailing data after last entry"));
         }
 
-        Ok(Self { file_type, entries, padding })
+        Ok(Self { file_type, entries })
     }
 
-    /// Encode the plaintext body, reproducing the original zero padding.
+    /// Encode the plaintext body, zero padded to the AES block size.
     pub fn to_plaintext(&self) -> Result<Vec<u8>, ContainerError> {
         let mut out = String::with_capacity(64 * 1024);
         out.push_str(&self.file_type.to_string());
@@ -154,10 +144,10 @@ impl Container {
             out.push('\n');
         }
         let mut bytes = out.into_bytes();
-        let padding = match self.padding {
-            0 => padding_for(bytes.len()),
-            n => n,
-        };
+        // Padding always follows from the content: the game pads the text to the
+        // next 16 byte boundary, so an edit must recompute it, not reuse the old
+        // count. An untouched save keeps its length, and so its exact padding.
+        let padding = padding_for(bytes.len());
         bytes.resize(bytes.len() + padding, 0);
         Ok(bytes)
     }
@@ -207,9 +197,9 @@ fn parse_u32(text: &str, what: &'static str) -> Result<u32, ContainerError> {
     text.parse().map_err(|_| ContainerError::Malformed(what))
 }
 
-fn split_padding(plaintext: &[u8]) -> (&[u8], usize) {
+fn without_padding(plaintext: &[u8]) -> &[u8] {
     let end = plaintext.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
-    (&plaintext[..end], plaintext.len() - end)
+    &plaintext[..end]
 }
 
 fn padding_for(len: usize) -> usize {
@@ -294,6 +284,30 @@ mod tests {
         let mut container = sample();
         container.set(property::LANGUAGE, "en\nus");
         assert!(matches!(container.to_plaintext(), Err(ContainerError::NewlineInValue(_))));
+    }
+
+    #[test]
+    fn editing_recomputes_the_padding() {
+        let mut container = sample();
+        let before = container.to_plaintext().unwrap().len();
+        container.set(property::LANGUAGE, "a much longer language tag");
+        let plaintext = container.to_plaintext().unwrap();
+        assert_eq!(plaintext.len() % BLOCK, 0, "padding follows the new content");
+        assert_ne!(plaintext.len(), before, "the edit changed the size");
+
+        let file = container.encrypt().unwrap();
+        assert_eq!(Container::decrypt(&file).unwrap(), container);
+    }
+
+    #[test]
+    fn a_body_that_already_fits_a_block_is_not_padded() {
+        let mut container = Container::new(0, vec![Entry::new(1, "")]);
+        while container.to_plaintext().unwrap().len() % BLOCK != 0 {
+            container.entries[0].value.push('x');
+        }
+        let plaintext = container.to_plaintext().unwrap();
+        assert_eq!(plaintext.len() % BLOCK, 0);
+        assert_eq!(Container::decrypt(&container.encrypt().unwrap()).unwrap(), container);
     }
 
     #[test]

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/sdt-save"]
+members = ["crates/sdt-save", "crates/sdt-editor"]
 resolver = "2"
 
 [workspace.package]
