@@ -1,0 +1,16 @@
+# A default location for the Raven library, so `cargo build` works without
+# remembering to set anything.
+#
+# The editor links Raven at build time, and the binding's build script only
+# searches the folder named by RAVEN_LIB_DIR. `relative = true` means "from this
+# repository's root", so this points at the Raven checkout beside it:
+#
+#   somewhere/
+#     Raven/build/          libraven.so or raven.dll, from a CMake build
+#     sonic-dream-editor/
+#
+# An RAVEN_LIB_DIR already set in the environment wins over this, which is what
+# CI relies on, and what you want if Raven lives somewhere else.
+
+[env]
+RAVEN_LIB_DIR = { value = "../Raven/build", relative = true, force = false }

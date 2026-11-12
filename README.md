@@ -64,13 +64,21 @@ cmake -S Raven -B Raven/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 cmake --build Raven/build --parallel
 ```
 
-Then point `RAVEN_LIB_DIR` at that build folder and build the editor:
+Then build the editor. Raven's build folder is the default, so with the two
+folders side by side there is nothing to set:
 
 ```sh
-RAVEN_LIB_DIR=Raven/build cargo build -p sdt-editor
+cargo build -p sdt-editor
+cargo build --release -p sdt-editor
 ```
 
-Run it with the same library path:
+That default lives in `.cargo/config.toml`. If Raven is somewhere else, say so:
+
+```sh
+RAVEN_LIB_DIR=/path/to/Raven/build cargo build -p sdt-editor
+```
+
+Run it with the library path, until you copy the library next to the binary:
 
 ```sh
 LD_LIBRARY_PATH=Raven/build ./target/debug/sdt-editor "/path/to/install"
