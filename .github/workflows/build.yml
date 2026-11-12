@@ -154,14 +154,16 @@ jobs:
           # The editor's own licence, if the repository has one yet.
           if [ -f LICENSE ]; then cp LICENSE "$OUT/LICENSE"; fi
 
-          cd "$OUT"
+          # Archive the folder itself, so unpacking gives you one directory
+          # rather than loose files in whatever you extracted into.
+          cd dist
           if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake -E tar cf "../$NAME.zip" --format=zip .
+            cmake -E tar cf "$NAME.zip" --format=zip "$NAME"
           else
-            tar czf "../$NAME.tar.gz" .
+            tar czf "$NAME.tar.gz" "$NAME"
           fi
+          cd ..
 
-          cd ../..
           echo "--- packaged ---"
           find "dist/$NAME" -type f | sort
 
