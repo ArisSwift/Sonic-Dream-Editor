@@ -105,10 +105,12 @@ cargo run -p sdt-save --example inspect -- "/path/to/PrimaryHL_Default_Save_ID"
 
 ## What comes in the archive
 
-Every push is built on Linux and Windows, and a tag like `v0.1.0` attaches both
-builds to a release. Each archive is the app on its own: the binary, the Raven
-library it links, the assets, and Raven's licence. Unpack it and run it, with no
-toolkit to install first.
+Every push is built on Linux and Windows, and a tag attaches both builds to a
+release. Grab one from the
+[releases page](https://github.com/ArisSwift/SonicDreamEditor/releases/latest).
+Each archive is the app on its own: the binary, the Raven library it links, the
+assets, and Raven's licence. Unpack it and run it, with no toolkit to install
+first.
 
 The Linux build is x86-64 and needs X11 libraries present, which any desktop has.
 The Windows build needs the Microsoft C++ runtime, which most machines already
