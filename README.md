@@ -13,7 +13,7 @@ editor was the excuse. If you're here for the save format, `crates/sdt-save`
 works on its own and doesn't need a window at all.
 
 <p align="center">
-  <img src="docs/savegame.png" width="860" alt="The Savegame page, one card per slot">
+  <img src="docs/screenshot-savegame.png" width="860" alt="The Savegame page, one card per slot">
 </p>
 
 ## Download and run
@@ -53,7 +53,7 @@ Nothing is written until you press **Save**. Every unlock only changes the save
 in memory, so you can change your mind as many times as you want.
 
 <p align="center">
-  <img src="docs/unlocks.png" width="620" alt="The Unlocks page, bulk edits for skins, powers, collectibles and missions">
+  <img src="docs/screenshot-unlocks.png" width="620" alt="The Unlocks page, bulk edits for skins, powers, collectibles and missions">
 </p>
 
 ## Where the save lives
