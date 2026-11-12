@@ -71,9 +71,16 @@ impl SaveFile {
 
     /// The slots this file holds, in slot order: the game allows three, and a
     /// file written before more than one existed holds only the first.
+    ///
+    /// A deleted save does not lose its entry: the game leaves the id in place
+    /// and blanks the value. An empty value is not a slot.
     pub fn slots(&self) -> Vec<usize> {
         (0..container::SLOT_IDS.len())
-            .filter(|index| self.container.get(container::SLOT_IDS[*index]).is_some())
+            .filter(|index| {
+                self.container
+                    .get(container::SLOT_IDS[*index])
+                    .is_some_and(|value| !value.trim().is_empty())
+            })
             .collect()
     }
 
@@ -208,6 +215,23 @@ mod tests {
         assert_eq!(current.container.get(container::property::GAME_VERSION), Some("1.10.2"));
 
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_blank_slot_is_not_a_slot() {
+        let container = Container::new(
+            0,
+            vec![
+                Entry::new(container::property::SAVE_DATA_GAME, r#"{"m_challenges":{}}"#),
+                // Deleting a save in the game leaves the id and blanks the value.
+                Entry::new(container::SLOT_IDS[1], ""),
+                Entry::new(container::SLOT_IDS[2], "  "),
+            ],
+        );
+        let file = SaveFile { container };
+
+        assert_eq!(file.slots(), vec![0]);
+        assert_eq!(file.unrecognised_slots(), Vec::<u32>::new());
     }
 
     #[test]
