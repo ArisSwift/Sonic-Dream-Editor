@@ -192,4 +192,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/* --title "$TAG" --generate-notes
+        run: |
+          # This job has no checkout, so gh cannot read the repository from a
+          # remote and has to be told.
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --generate-notes
