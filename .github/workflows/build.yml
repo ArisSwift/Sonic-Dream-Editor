@@ -140,9 +140,12 @@ jobs:
             cp ../Raven/build/bin/Release/raven.dll "$OUT/"
           else
             cp target/release/sdt-editor "$OUT/"
-            # The binary asks for libraven.so.0, which is the soname, not the
-            # file name in the build folder.
-            cp ../Raven/build/libraven.so.0.2.2 "$OUT/libraven.so.0"
+            # The binary asks for the soname (libraven.so.0), not the versioned
+            # file name in the build folder, so read the soname out of the
+            # library rather than assuming it.
+            LIB="$(ls ../Raven/build/libraven.so.* | head -1)"
+            SONAME="$(readelf -d "$LIB" | sed -n 's/.*SONAME.*\[\(.*\)\].*/\1/p')"
+            cp "$LIB" "$OUT/${SONAME:-libraven.so.0}"
           fi
 
           cp -r crates/sdt-editor/assets "$OUT/assets"
