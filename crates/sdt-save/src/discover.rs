@@ -66,9 +66,14 @@ fn read_save(path: &Path) -> Option<FoundSave> {
     }
     let file = SaveFile::load(path).ok()?;
     let slots = file.slots().len();
-    // A game save has a challenges block; anything else that happens to decode
-    // is not a slot.
-    if slots == 0 || file.slot_game(0).ok()?.root().get("m_challenges").is_none() {
+    // A game save has a challenges block. One of those proves this is a save
+    // file even when the ids inside it are ones this build does not know, so a
+    // game update shows a file with a warning rather than no file at all.
+    let recognised = file
+        .slot_game(0)
+        .ok()
+        .is_some_and(|save| save.root().get("m_challenges").is_some());
+    if !recognised && file.unrecognised_slots().is_empty() {
         return None;
     }
     Some(FoundSave {
@@ -115,6 +120,29 @@ mod tests {
         assert_eq!(found[0].identifier, PRIMARY_FILE);
         assert_eq!(found[0].slots, 2, "both slots in the file are counted");
         assert_eq!(install_of(&found[0].path), Some(root.clone()));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn finds_a_save_whose_ids_this_build_does_not_know() {
+        let root = std::env::temp_dir().join(format!("sdt-discover-moved-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let folder = root.join("PCSaveData");
+        fs::create_dir_all(&folder).unwrap();
+
+        // A game update that changes the slot keys: no id here is one the
+        // editor knows, and the file is still recognisably a save.
+        let entries = vec![Entry::new(9_999_999, "{\"m_challenges\":{}}")];
+        SaveFile {
+            container: crate::Container::new(0, entries),
+        }
+        .write_atomic(folder.join(PRIMARY_FILE))
+        .unwrap();
+
+        let found = find_saves(&root);
+        assert_eq!(found.len(), 1, "the file is still found, so the warning can be shown");
+        assert_eq!(found[0].slots, 0, "but no slot in it can be named");
 
         fs::remove_dir_all(&root).unwrap();
     }

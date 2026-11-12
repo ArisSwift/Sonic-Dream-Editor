@@ -87,6 +87,10 @@
                                    Text="No saves found yet. Choose your game folder above; the editor will list the saves in it."
                                    Class="hint" Wrap="true"/>
 
+                            <!-- Shown only when the file holds a save this build
+                                 cannot name: see `refresh_slots`. -->
+                            <Label Name="slotsWarning" Text="" Class="warn" Wrap="true"/>
+
                             <Grid Columns="1,1,1" Spacing="14">
                                 <Border Name="slot1" Class="slotcard" Padding="16,14" MinHeight="270">
                                     <VBox Spacing="0">

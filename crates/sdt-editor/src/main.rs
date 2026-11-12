@@ -156,6 +156,8 @@ fn start(headless: bool) -> Option<Rc<RefCell<State>>> {
         .find(|id| *id == page)
         .unwrap_or("savegame");
     show_page(&state, page);
+    // Hidden until a save gives it something to say: see `refresh_slots`.
+    unsafe { Rwidget_set_visibility(widget_find(window, "slotsWarning"), R_COLLAPSED) };
     Some(state)
 }
 
@@ -435,6 +437,10 @@ fn self_test(path: &str) {
     check(
         unsafe { Rwidget_get_visibility(widget_find(window, "slotsEmpty")) } == R_COLLAPSED,
         "the empty message goes away once a save is found",
+    );
+    check(
+        unsafe { Rwidget_get_visibility(widget_find(window, "slotsWarning")) } == R_COLLAPSED,
+        "no warning while every slot in the file is one this build knows",
     );
     fire("loadSlot1");
     check(
@@ -786,6 +792,14 @@ fn open_install(state: &Rc<RefCell<State>>, install: PathBuf) {
         (Some(file), Some(save)) => (file.slots().len(), save.identifier.clone()),
         _ => (0, String::new()),
     };
+    // A save under an id this build does not know is still a save in this file,
+    // so count it: the folder line must not claim there is no file, and the
+    // warning explains which slots can be shown.
+    let unnamed = file
+        .as_ref()
+        .map(|file| file.unrecognised_slots().len())
+        .unwrap_or(0);
+    let total = slots + unnamed;
     {
         let mut state = state.borrow_mut();
         state.install = Some(install.clone());
@@ -800,17 +814,17 @@ fn open_install(state: &Rc<RefCell<State>>, install: PathBuf) {
     set_label(
         &state.borrow(),
         "saveFile",
-        &if slots == 0 {
+        &if total == 0 {
             "No save file yet.".to_string()
         } else {
             format!(
-                "{identifier} · {slots} slot{}",
-                if slots == 1 { "" } else { "s" }
+                "{identifier} · {total} slot{}",
+                if total == 1 { "" } else { "s" }
             )
         },
     );
     refresh_slots(state);
-    let message = match (save_folder(&install), slots) {
+    let message = match (save_folder(&install), total) {
         (None, _) => format!(
             "{} has no PCSaveData folder. Pick the folder that has ProjectDream.exe in it.",
             install.display()
@@ -819,9 +833,9 @@ fn open_install(state: &Rc<RefCell<State>>, install: PathBuf) {
             "No save in {}. Start the game once and press Refresh.",
             install.display()
         ),
-        (Some(_), slots) => format!(
-            "Found {slots} save slot{} in {}.",
-            if slots == 1 { "" } else { "s" },
+        (Some(_), total) => format!(
+            "Found {total} save slot{} in {}.",
+            if total == 1 { "" } else { "s" },
             install.display()
         ),
     };
@@ -908,8 +922,38 @@ fn refresh_slots(state: &Rc<RefCell<State>>) {
             ),
         );
     }
-    let empty = if any { R_COLLAPSED } else { R_VISIBLE };
+    // A save under an id this build does not know is left alone rather than
+    // guessed at, and saying so beats a slot that silently does not appear.
+    let warning = widget_find(state.window, "slotsWarning");
+    let extra = file.map(|file| file.unrecognised_slots().len()).unwrap_or(0);
+    // With no nameable slot the card grid is empty, so the warning speaks for
+    // the file instead of the "no saves found" line.
+    let empty = if any || extra > 0 { R_COLLAPSED } else { R_VISIBLE };
     unsafe { Rwidget_set_visibility(widget_find(state.window, "slotsEmpty"), empty) };
+    if extra == 0 {
+        unsafe { Rwidget_set_visibility(warning, R_COLLAPSED) };
+        return;
+    }
+    let version = file
+        .and_then(|file| file.game_version())
+        .map(|version| format!(" The game wrote this file as version {version}."))
+        .unwrap_or_default();
+    let text = match (any, extra) {
+        (true, 1) => format!(
+            "One more save is in this file under an ID this build does not know. It is left alone rather than guessed at.{version}"
+        ),
+        (true, extra) => format!(
+            "{extra} more saves are in this file under IDs this build does not know. They are left alone rather than guessed at.{version}"
+        ),
+        (false, 1) => format!(
+            "The save in this file uses an ID this build does not know, so nothing is shown. It is left alone rather than guessed at.{version}"
+        ),
+        (false, extra) => format!(
+            "The {extra} saves in this file use IDs this build does not know, so nothing is shown. Nothing is guessed at.{version}"
+        ),
+    };
+    set_label(&state, "slotsWarning", &text);
+    unsafe { Rwidget_set_visibility(warning, R_VISIBLE) };
 }
 
 /// When the game last wrote the slot, from `m_lastSavedTimestampMs`, printed the

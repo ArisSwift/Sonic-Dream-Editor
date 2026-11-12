@@ -57,6 +57,8 @@
 	<!-- The number on a card. -->
 	<Style Class="stat" FontSize="22" Text="#FFFFFF"/>
 	<Style Class="hint" Text="#9AA0A7" FontSize="12"/>
+<!-- Something the editor is not sure about. Not an error, so not red. -->
+<Style Class="warn" Text="#F59E0B" FontSize="12"/>
 	<Style Class="topbar" Panel="#1C1D1F"/>
 	<Style Class="rail" Panel="#1A1B1D"/>
 	<Style Class="page" Panel="#17181A"/>

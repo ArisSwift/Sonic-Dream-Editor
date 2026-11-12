@@ -77,6 +77,32 @@ impl SaveFile {
             .collect()
     }
 
+    /// Property ids in this file that hold a game save, but are not one of the
+    /// ids this build knows.
+    ///
+    /// The slot ids are the game's own, so they hold on any PC running the same
+    /// build. A game update, or a slot added after this editor was built, would
+    /// arrive as an entry with a save inside it and an id nobody recognises.
+    /// Judged by shape, the same way the folder scan judges a file: a game save
+    /// has an `m_challenges` block. Nothing is assumed about their order.
+    pub fn unrecognised_slots(&self) -> Vec<u32> {
+        self.container
+            .entries
+            .iter()
+            .filter(|entry| !container::SLOT_IDS.contains(&entry.id))
+            .filter(|entry| {
+                GameSave::parse(&entry.value)
+                    .is_ok_and(|save| save.root().get("m_challenges").is_some())
+            })
+            .map(|entry| entry.id)
+            .collect()
+    }
+
+    /// The game version the file says wrote it, when it says.
+    pub fn game_version(&self) -> Option<&str> {
+        self.container.get(container::property::GAME_VERSION)
+    }
+
     /// The game save JSON of one slot, indexed from 0.
     pub fn slot_game(&self, index: usize) -> Result<GameSave, Error> {
         let id = *container::SLOT_IDS
@@ -182,5 +208,25 @@ mod tests {
         assert_eq!(current.container.get(container::property::GAME_VERSION), Some("1.10.2"));
 
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn reports_a_save_it_cannot_name() {
+        let slot = r#"{"m_challenges":{}}"#;
+        let container = Container::new(
+            0,
+            vec![
+                Entry::new(container::property::SAVE_DATA_GAME, slot),
+                Entry::new(9_999_999, slot),
+                Entry::new(container::property::GAME_VERSION, "1.11.0"),
+                // Shaped like JSON but not a save: not reported.
+                Entry::new(1_234, r#"{"m_settings":{}}"#),
+            ],
+        );
+        let file = SaveFile { container };
+
+        assert_eq!(file.unrecognised_slots(), vec![9_999_999]);
+        assert_eq!(file.slots(), vec![0], "the known slot is still the only nameable one");
+        assert_eq!(file.game_version(), Some("1.11.0"));
     }
 }

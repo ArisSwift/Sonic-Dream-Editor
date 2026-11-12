@@ -150,6 +150,12 @@ Each slot is one entry holding the game's JSON. The three slot ids are
 game used last. Settings, language, game version and notifications sit beside
 them as their own entries.
 
+Those ids belong to the game, not to the file. Nothing in a save carries a slot
+table, and the same ids show up in the local file and in the game's cloud store,
+so any PC running the same build has the same three. If an update ever changes
+them, the editor says so on the Savegame page and leaves the saves it cannot name
+alone rather than guessing which is which.
+
 XP is the one part that isn't a plain number. Each track stores a major and a
 minor part (`m_spentXP` and `m_spentXPMinor`), scaled by 100, and the reward
 screens show one shared balance: everything earned minus everything every track
