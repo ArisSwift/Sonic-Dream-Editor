@@ -85,11 +85,11 @@ jobs:
       - name: Cache the Raven build
         uses: actions/cache@v4
         with:
-          path: ../Raven/build
+          path: Raven/build
           key: raven-${{ runner.os }}-${{ env.RAVEN_REV }}
 
       - name: Configure Raven
-        working-directory: ../Raven
+        working-directory: Raven
         run: |
           # Windows needs the native path for CMake; MSYS-style /d/... is rejected.
           ROOT="$(pwd)"
@@ -108,7 +108,7 @@ jobs:
             -DRAVEN_VULKAN_INCLUDE_DIR="$ROOT/../vulkan-headers/include"
 
       - name: Build Raven
-        working-directory: ../Raven
+        working-directory: Raven
         run: cmake --build build --config Release --parallel
 
       - name: Say where Raven landed
@@ -154,9 +154,9 @@ jobs:
 
           cd "$OUT"
           if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake -E tar cf "../../$NAME.zip" --format=zip .
+            cmake -E tar cf "../$NAME.zip" --format=zip .
           else
-            tar czf "../../$NAME.tar.gz" .
+            tar czf "../$NAME.tar.gz" .
           fi
 
           cd ../..
