@@ -135,7 +135,9 @@ jobs:
 
           if [ "$RUNNER_OS" = "Windows" ]; then
             cp target/release/sdt-editor.exe "$OUT/"
-            cp ../Raven/build/Release/raven.dll "$OUT/"
+            # Visual Studio puts the DLL under bin/Release and leaves the
+            # import library beside the project in Release/.
+            cp ../Raven/build/bin/Release/raven.dll "$OUT/"
           else
             cp target/release/sdt-editor "$OUT/"
             # The binary asks for libraven.so.0, which is the soname, not the
