@@ -44,19 +44,40 @@ there's always a step back.
 
 ## Building
 
-You need a recent Rust toolchain and a built copy of
-[Raven](https://github.com/oscar-soirey/Raven). Point `RAVEN_LIB_DIR` at the
-folder that holds `libraven.so`:
+You need a recent Rust toolchain and
+[Raven](https://github.com/ArisSwift/Raven), the UI toolkit the window is made
+of. Raven is built from source, and the editor links it by a path, so the two
+need to sit beside each other:
+
+```
+somewhere/
+  Raven/                 the toolkit
+  sonic-dream-editor/    this repository
+```
+
+Clone [my fork of Raven](https://github.com/ArisSwift/Raven) into `Raven`, build
+it once:
 
 ```sh
-RAVEN_LIB_DIR=/path/to/Raven/build cargo build -p sdt-editor
+cmake -S Raven -B Raven/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DRAVEN_BUILD_SHARED=ON -DRAVEN_BUILD_TOOLS=OFF -DRAVEN_BUILD_EXAMPLES=OFF
+cmake --build Raven/build --parallel
+```
+
+Then point `RAVEN_LIB_DIR` at that build folder and build the editor:
+
+```sh
+RAVEN_LIB_DIR=Raven/build cargo build -p sdt-editor
 ```
 
 Run it with the same library path:
 
 ```sh
-LD_LIBRARY_PATH=/path/to/Raven/build ./target/debug/sdt-editor "/path/to/install"
+LD_LIBRARY_PATH=Raven/build ./target/debug/sdt-editor "/path/to/install"
 ```
+
+On Windows the library is `raven.dll` in `Raven/build/Release` instead, and it
+has to sit next to `sdt-editor.exe` when you run it.
 
 Pass the install folder, the save file, or nothing at all. With nothing, it
 looks around for an install itself.
@@ -81,6 +102,17 @@ To look inside a real save, and confirm the round trip is byte for byte:
 ```sh
 cargo run -p sdt-save --example inspect -- "/path/to/PrimaryHL_Default_Save_ID"
 ```
+
+## What comes in the archive
+
+Every push is built on Linux and Windows, and a tag like `v0.1.0` attaches both
+builds to a release. Each archive is the app on its own: the binary, the Raven
+library it links, the assets, and Raven's licence. Unpack it and run it, with no
+toolkit to install first.
+
+The Linux build is x86-64 and needs X11 libraries present, which any desktop has.
+The Windows build needs the Microsoft C++ runtime, which most machines already
+have from something else. If it complains about a missing DLL, that is the one.
 
 ## How the save file works
 

@@ -12,6 +12,10 @@ authors = ["Aris Swift"]
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc", "block-padding"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# Raven, the UI toolkit. The binding crate is not on crates.io, so it is taken
+# from a checkout that sits beside this repository: ../Raven. Clone it there
+# before building the editor.
+raven-gui = { path = "../Raven/bindings/rust" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"

@@ -1,0 +1,191 @@
+# Builds the editor for Linux and Windows.
+#
+# Both jobs build Raven from source at a pinned commit, then build the editor
+# against it, then package a folder that runs on a machine with nothing
+# installed but the OS. Nothing prebuilt is trusted: the Raven we ship is
+# compiled by this workflow, on the same commit, for the same platform.
+#
+# The binding crate is not on crates.io and the editor depends on it at
+# `../Raven/bindings/rust`, relative to the repository root. So both checkouts
+# are placed side by side inside the runner's workspace:
+#
+#   $GITHUB_WORKSPACE/Raven   the toolkit
+#   $GITHUB_WORKSPACE/sdt     this repository
+#
+# The same layout is what a local build expects (clone Raven beside this repo).
+#
+# Pushing a tag v* also attaches both archives to a GitHub release.
+
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The Raven commit everything is built against. Bump it here and both the
+  # library and the Rust binding move together.
+  RAVEN_REV: 512906bdd7e71e76e941d4b0089616720fa84a19
+  # Only the headers are needed; nothing links against Vulkan at build time.
+  VULKAN_HEADERS_TAG: v1.3.290
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # Raven's own CI uses bash on every runner, including Windows.
+    defaults:
+      run:
+        shell: bash
+        working-directory: sdt
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x64,   os: ubuntu-latest,  package: SonicDreamEditor-linux-x64 }
+          - { name: windows-x64, os: windows-latest, package: SonicDreamEditor-windows-x64 }
+
+    steps:
+      - name: Check out the editor
+        uses: actions/checkout@v4
+        with:
+          path: sdt
+
+      - name: Check out Raven
+        uses: actions/checkout@v4
+        with:
+          repository: ArisSwift/Raven
+          ref: ${{ env.RAVEN_REV }}
+          path: Raven
+
+      - name: Check out the Vulkan headers
+        uses: actions/checkout@v4
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: ${{ env.VULKAN_HEADERS_TAG }}
+          path: vulkan-headers
+
+      - name: System dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libx11-dev ninja-build
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # The build is reproducible either way; this only makes the Raven half
+      # incremental, since every other step still configures and builds.
+      - name: Cache the Raven build
+        uses: actions/cache@v4
+        with:
+          path: ../Raven/build
+          key: raven-${{ runner.os }}-${{ env.RAVEN_REV }}
+
+      - name: Configure Raven
+        working-directory: ../Raven
+        run: |
+          # Windows needs the native path for CMake; MSYS-style /d/... is rejected.
+          ROOT="$(pwd)"
+          if [ "$RUNNER_OS" = "Windows" ]; then ROOT="$(pwd -W)"; fi
+
+          EXTRA=()
+          if [ "$RUNNER_OS" = "Linux" ]; then EXTRA+=(-G Ninja); fi
+          if [ "$RUNNER_OS" = "Windows" ]; then EXTRA+=(-A x64); fi
+
+          cmake -S . -B build "${EXTRA[@]}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DRAVEN_BUILD_SHARED=ON \
+            -DRAVEN_BUILD_TESTS=OFF \
+            -DRAVEN_BUILD_EXAMPLES=OFF \
+            -DRAVEN_BUILD_TOOLS=OFF \
+            -DRAVEN_VULKAN_INCLUDE_DIR="$ROOT/../vulkan-headers/include"
+
+      - name: Build Raven
+        working-directory: ../Raven
+        run: cmake --build build --config Release --parallel
+
+      - name: Say where Raven landed
+        run: |
+          # Ninja puts the library in build/, Visual Studio in build/Release/.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "RAVEN_LIB_DIR=$GITHUB_WORKSPACE/Raven/build/Release" >> "$GITHUB_ENV"
+          else
+            echo "RAVEN_LIB_DIR=$GITHUB_WORKSPACE/Raven/build" >> "$GITHUB_ENV"
+          fi
+
+      - name: Test the save core
+        run: cargo test -p sdt-save --locked
+
+      - name: Build the editor
+        run: cargo build -p sdt-editor --release --locked
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          NAME="${{ matrix.package }}"
+          OUT="dist/$NAME"
+          mkdir -p "$OUT"
+
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp target/release/sdt-editor.exe "$OUT/"
+            cp ../Raven/build/Release/raven.dll "$OUT/"
+          else
+            cp target/release/sdt-editor "$OUT/"
+            # The binary asks for libraven.so.0, which is the soname, not the
+            # file name in the build folder.
+            cp ../Raven/build/libraven.so.0.2.2 "$OUT/libraven.so.0"
+          fi
+
+          cp -r crates/sdt-editor/assets "$OUT/assets"
+
+          # Raven is Apache 2.0: the licence and its NOTICE travel with the binary.
+          cp ../Raven/LICENSE "$OUT/RAVEN-LICENSE"
+          cp ../Raven/NOTICE "$OUT/RAVEN-NOTICE"
+
+          # The editor's own licence, if the repository has one yet.
+          if [ -f LICENSE ]; then cp LICENSE "$OUT/LICENSE"; fi
+
+          cd "$OUT"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cmake -E tar cf "../../$NAME.zip" --format=zip .
+          else
+            tar czf "../../$NAME.tar.gz" .
+          fi
+
+          cd ../..
+          echo "--- packaged ---"
+          find "dist/$NAME" -type f | sort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}
+          path: |
+            sdt/dist/${{ matrix.package }}.zip
+            sdt/dist/${{ matrix.package }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Attach the archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --title "$TAG" --generate-notes

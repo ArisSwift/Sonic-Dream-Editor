@@ -15,6 +15,7 @@ sdt-save = { path = "../sdt-save" }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 # Raven is built from source; point RAVEN_LIB_DIR at the build folder that holds
-# libraven.so (or raven.dll) when compiling.
-raven-gui = { path = "/mnt/arizen/Github/Raven/bindings/rust" }
+# libraven.so (or raven.dll) when compiling. The checkout it comes from lives in
+# ../Raven, beside this repository.
+raven-gui = { workspace = true }
 image = { version = "0.25.10", default-features = false, features = ["png"] }
