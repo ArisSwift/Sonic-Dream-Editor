@@ -16,13 +16,15 @@
 //! ```
 
 pub mod container;
+pub mod discover;
 pub mod save;
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-pub use container::{Container, ContainerError, Entry};
+pub use container::{Container, ContainerError, Entry, SLOT_IDS};
+pub use discover::{find_saves, install_of, save_folder, FoundSave};
 pub use save::{thousands, GameSave, Progress, SaveError, XpAccount, XpTrack, XP_SCALE};
 
 /// File name of the authoritative save inside `PCSaveData`.
@@ -57,22 +59,53 @@ impl SaveFile {
         Self::parse(&fs::read(path)?)
     }
 
-    /// The game save JSON (`SaveDataGame`).
+    /// The game save JSON of slot 1 (`SaveDataGame`).
     pub fn game_save(&self) -> Result<GameSave, Error> {
+        self.slot_game(0)
+    }
+
+    /// Replace the game save JSON of slot 1.
+    pub fn set_game_save(&mut self, save: &GameSave) -> Result<(), Error> {
+        self.set_slot_game(0, save)
+    }
+
+    /// The slots this file holds, in slot order: the game allows three, and a
+    /// file written before more than one existed holds only the first.
+    pub fn slots(&self) -> Vec<usize> {
+        (0..container::SLOT_IDS.len())
+            .filter(|index| self.container.get(container::SLOT_IDS[*index]).is_some())
+            .collect()
+    }
+
+    /// The game save JSON of one slot, indexed from 0.
+    pub fn slot_game(&self, index: usize) -> Result<GameSave, Error> {
+        let id = *container::SLOT_IDS
+            .get(index)
+            .ok_or(Error::MissingProperty(u32::MAX))?;
         let text = self
             .container
-            .get(container::property::SAVE_DATA_GAME)
-            .ok_or(Error::MissingProperty(container::property::SAVE_DATA_GAME))?;
+            .get(id)
+            .ok_or(Error::MissingProperty(id))?;
         Ok(GameSave::parse(text)?)
     }
 
-    /// Replace the game save JSON.
-    pub fn set_game_save(&mut self, save: &GameSave) -> Result<(), Error> {
-        if self.container.get(container::property::SAVE_DATA_GAME).is_none() {
-            return Err(Error::MissingProperty(container::property::SAVE_DATA_GAME));
+    /// Replace the game save JSON of one slot, indexed from 0.
+    pub fn set_slot_game(&mut self, index: usize, save: &GameSave) -> Result<(), Error> {
+        let id = *container::SLOT_IDS
+            .get(index)
+            .ok_or(Error::MissingProperty(u32::MAX))?;
+        if self.container.get(id).is_none() {
+            return Err(Error::MissingProperty(id));
         }
-        self.container.set(container::property::SAVE_DATA_GAME, save.to_json());
+        self.container.set(id, save.to_json());
         Ok(())
+    }
+
+    /// Which slot the game last used, when the file says.
+    pub fn active_slot(&self) -> Option<usize> {
+        self.container
+            .get(container::property::ACTIVE_SLOT)
+            .and_then(|value| value.trim().parse::<usize>().ok())
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {

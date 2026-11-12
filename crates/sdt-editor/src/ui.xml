@@ -1,103 +1,500 @@
-<Window Title="Dream Save Editor — Sonic Dream Team" Width="1120" Height="760">
-    <Shortcut Keys="Ctrl+O" Action="load"/>
+<Window Title="Dream Save Editor - Sonic Dream Team" Width="948" Height="764"
+        MinWidth="880" MinHeight="620" CustomHeader="true">
+    <Shortcut Keys="Ctrl+O" Action="chooseFolder"/>
     <Shortcut Keys="Ctrl+S" Action="save"/>
-    <VBox Spacing="10" Slot.Padding="14">
-        <HBox Spacing="8">
-            <TextInput Name="path" Placeholder="Path to PCSaveData/PrimaryHL_Default_Save_ID" Slot.Fill="1"/>
-            <Button Text="Load" OnClicked="load"/>
-            <Button Text="JSON" Style="Flat" OnClicked="toggle:jsonPane"/>
-            <Button Text="Save" Style="Primary" OnClicked="save"/>
-        </HBox>
-        <Label Text="Edits go straight into the file the game reads. The previous version is kept beside it as -backup."
-               TextSize="12" Opacity="0.6"/>
+
+    <VBox Spacing="0">
+        <!-- The window's own bar: dark, and the only place the window buttons live. -->
+        <HeaderBar Title="" Buttons="All"/>
+        <!-- Top bar: the app name on the left, the file actions on the right,
+             and the game's own logo centred between them: two layers stacked,
+             so the logo stays in the middle whatever the two sides are worth. -->
+        <Overlay Class="topbar">
+            <HBox Spacing="10" Slot.Padding="16,10">
+                <Label Name="appTitle" Text="Dream Save Editor" TextSize="17" Slot.VAlign="Center"/>
+                <Spacer Slot.Fill="1"/>
+                <Label Name="pageMeta" Text="" Class="meta" Slot.VAlign="Center"/>
+                <Button Name="saveButton" Text="Save" Style="Primary" OnClicked="save"
+                        Tooltip="Writes straight into the game's file; the previous version stays beside it as -backup (Ctrl+S)"/>
+            </HBox>
+            <Image Source="icons/logo.png" Width="74" Height="58" Stretch="Fit"
+                   Slot.HAlign="Center" Slot.VAlign="Center"/>
+        </Overlay>
         <Separator/>
 
-        <Splitter Orientation="Horizontal" Slot.Fill="1" MinPaneSize="320">
-            <ScrollBox Slot.Fill="2" Spacing="12" Slot.Padding="0,0,12,0">
-                <VBox Spacing="10">
-                    <Label Text="**Progression**" Markdown="true" TextSize="18"/>
-                    <Grid Columns="auto,1" Spacing="6">
-                        <Label Text="Missions complete" Slot.Column="0" Slot.Row="0"/>
-                        <Label Name="statMissions" Text="—" Slot.Column="1" Slot.Row="0" Slot.HAlign="Right"/>
-
-                        <Label Text="Levels complete" Slot.Column="0" Slot.Row="1"/>
-                        <Label Name="statLevels" Text="—" Slot.Column="1" Slot.Row="1" Slot.HAlign="Right"/>
-
-                        <Label Text="Dream powers" Slot.Column="0" Slot.Row="2"/>
-                        <Label Name="statPowers" Text="—" Slot.Column="1" Slot.Row="2" Slot.HAlign="Right"/>
-
-                        <Label Text="Character skins" Slot.Column="0" Slot.Row="3"/>
-                        <Label Name="statSkins" Text="—" Slot.Column="1" Slot.Row="3" Slot.HAlign="Right"/>
-
-                        <Label Text="Ornaments" Slot.Column="0" Slot.Row="4"/>
-                        <Label Name="statOrnaments" Text="—" Slot.Column="1" Slot.Row="4" Slot.HAlign="Right"/>
-
-                        <Label Text="Music tracks" Slot.Column="0" Slot.Row="5"/>
-                        <Label Name="statMusic" Text="—" Slot.Column="1" Slot.Row="5" Slot.HAlign="Right"/>
-
-                        <Label Text="Challenges done" Slot.Column="0" Slot.Row="6"/>
-                        <Label Name="statChallenges" Text="—" Slot.Column="1" Slot.Row="6" Slot.HAlign="Right"/>
-                    </Grid>
-
-                    <Separator/>
-                    <Label Text="**Currencies**" Markdown="true" TextSize="18"/>
-                    <Label Text="XP is one shared pool that all three tracks show: what story missions and challenges earned, minus what the tracks have spent. Blue coins work the same way, but the save only keeps the spend counter."
-                           TextSize="12" Opacity="0.6" Wrap="true"/>
-                    <Grid Columns="auto,1" Spacing="6">
-                        <Label Text="XP available" Slot.Column="0" Slot.Row="0"/>
-                        <Label Name="xpAvailable" Text="—" Slot.Column="1" Slot.Row="0" Slot.HAlign="Right"/>
-
-                        <Label Text="XP earned" Slot.Column="0" Slot.Row="1"/>
-                        <Label Name="xpEarned" Text="—" Slot.Column="1" Slot.Row="1" Slot.HAlign="Right"/>
-
-                        <Label Text="XP spent" Slot.Column="0" Slot.Row="2"/>
-                        <Label Name="xpSpent" Text="—" Slot.Column="1" Slot.Row="2" Slot.HAlign="Right"/>
-
-                        <Label Text="Blue coins spent" Slot.Column="0" Slot.Row="3"/>
-                        <Label Name="coinsSpent" Text="—" Slot.Column="1" Slot.Row="3" Slot.HAlign="Right"/>
-                    </Grid>
-                    <Label Name="xpTracks" Text="" TextSize="12" Opacity="0.6" Wrap="true"/>
-                    <HBox Spacing="8">
-                        <Label Text="Give XP" Width="130" Slot.VAlign="Center"/>
-                        <TextInput Name="xpDelta" Placeholder="+10000" Slot.Fill="1"/>
-                        <Button Text="Apply" OnClicked="addXp"/>
-                    </HBox>
-                    <HBox Spacing="8">
-                        <Label Text="Give blue coins" Width="130" Slot.VAlign="Center"/>
-                        <TextInput Name="coinDelta" Placeholder="+250" Slot.Fill="1"/>
-                        <Button Text="Apply" OnClicked="addCoins"/>
-                    </HBox>
-
-                    <Separator/>
-                    <Label Text="**Unlock everything**" Markdown="true" TextSize="18"/>
-                    <Grid Columns="1,1" Spacing="8">
-                        <Button Text="Unlock skins" OnClicked="unlockSkins" Slot.Column="0" Slot.Row="0"/>
-                        <Button Text="Unlock dream powers" OnClicked="unlockPowers" Slot.Column="1" Slot.Row="0"/>
-
-                        <Button Text="Unlock ornaments and music" OnClicked="unlockCollectibles" Slot.Column="0" Slot.Row="1"/>
-                        <Button Text="Complete all missions" OnClicked="completeMissions" Slot.Column="1" Slot.Row="1"/>
-
-                        <Button Text="Collect all rewards" OnClicked="collectRewards" Slot.Column="0" Slot.Row="2"/>
-                        <Button Text="Reset missions" Style="Flat" OnClicked="resetMissions" Slot.Column="1" Slot.Row="2"/>
-                    </Grid>
-                </VBox>
-            </ScrollBox>
-
-            <VBox Name="jsonPane" Slot.Fill="3" Spacing="8">
-                <HBox Spacing="8">
-                    <Label Text="Game save JSON" Slot.Fill="1" Slot.VAlign="Center"/>
-                    <Button Text="Apply JSON" OnClicked="applyJson"/>
-                    <Button Text="Refresh" OnClicked="refreshJson"/>
-                </HBox>
-                <TextEditor Name="json" Language="JSON" Slot.Fill="1"
-                            Placeholder="Load a save to see the game's JSON here"/>
+        <HBox Spacing="0" Slot.Fill="1">
+            <!-- Rail: one icon per page, the icon the game itself uses for it. -->
+            <VBox Class="rail" Width="76" Spacing="8" Slot.Padding="10,12">
+                <Button Name="navSavegame" Class="nav" Style="Flat" Height="44" OnClicked="navSavegame" Tooltip="Savegame">
+                    <Image Source="icons/savegame.png" Width="30" Height="30" Stretch="Fit"
+                           Slot.HAlign="Center" Slot.VAlign="Center"/>
+                </Button>
+                <Button Name="navProgression" Class="nav" Style="Flat" Height="44" OnClicked="navProgression" Tooltip="Progression">
+                    <Image Source="icons/progression.png" Width="30" Height="30" Stretch="Fit"
+                           Slot.HAlign="Center" Slot.VAlign="Center"/>
+                </Button>
+                <Button Name="navCurrency" Class="nav" Style="Flat" Height="44" OnClicked="navCurrency" Tooltip="Currency">
+                    <Image Source="icons/currency.png" Width="26" Height="36" Stretch="Fit"
+                           Slot.HAlign="Center" Slot.VAlign="Center"/>
+                </Button>
+                <Button Name="navUnlocks" Class="nav" Style="Flat" Height="44" OnClicked="navUnlocks" Tooltip="Unlocks">
+                    <Image Source="icons/unlocks.png" Width="30" Height="30" Stretch="Fit"
+                           Slot.HAlign="Center" Slot.VAlign="Center"/>
+                </Button>
+                <Button Name="navJson" Class="nav" Style="Flat" Height="44" OnClicked="navJson" Tooltip="JSON">
+                    <Image Source="icons/json.png" Width="30" Height="30" Stretch="Fit"
+                           Slot.HAlign="Center" Slot.VAlign="Center"/>
+                </Button>
+                <!-- About sits apart from the pages: it is not one of them. -->
+                <Spacer Slot.Fill="1"/>
+                <Button Name="navAbout" Class="nav" Style="Flat" Height="44" OnClicked="navAbout" Tooltip="About">
+                    <Image Source="icons/about.png" Width="30" Height="30" Stretch="Fit"
+                           Slot.HAlign="Center" Slot.VAlign="Center"/>
+                </Button>
             </VBox>
-        </Splitter>
+            <Separator Orientation="Vertical"/>
+
+            <!-- Content. -->
+            <VBox Class="page" Slot.Fill="1" Spacing="0">
+                <HBox Spacing="10" Slot.Padding="22,18,22,0">
+                    <Label Name="pageTitle" Text="Savegame" TextSize="20" Slot.VAlign="Center"/>
+                </HBox>
+                <Label Name="pageSubtitle" Text="" Class="hint" Wrap="true" Slot.Padding="22,4,22,0"/>
+
+                <ScrollBox Name="pageScroll" Slot.Fill="1" Slot.Padding="22,12,22,6">
+                    <VBox Spacing="14">
+
+                        <!-- ============================ Savegame -->
+                        <VBox Name="pageSavegame" Spacing="14">
+                            <Border Class="card" Padding="14,12">
+                                <HBox Spacing="12">
+                                    <Image Source="icons/folder.png" Width="44" Height="44" Stretch="Fit"
+                                           Slot.VAlign="Center"/>
+                                    <VBox Slot.Fill="1" Spacing="2">
+                                        <Label Text="Game folder" TextSize="14"/>
+                                        <Label Name="folderPath" Text="No folder chosen yet."
+                                               Class="meta" Wrap="true"/>
+                                        <Label Name="saveFile" Text="No save file yet." Class="meta"/>
+                                    </VBox>
+                                    <Button Text="Choose folder…" Style="Primary" OnClicked="chooseFolder"
+                                            Slot.VAlign="Center"/>
+                                    <Button Text="Refresh" Style="Flat" OnClicked="refreshSaves"
+                                            Tooltip="Read the folder again" Slot.VAlign="Center"/>
+                                </HBox>
+                            </Border>
+
+                            <Label Name="slotsEmpty"
+                                   Text="No saves found yet. Choose your game folder above; the editor will list the saves in it."
+                                   Class="hint" Wrap="true"/>
+
+                            <Grid Columns="1,1,1" Spacing="14">
+                                <Border Name="slot1" Class="slotcard" Padding="16,14" MinHeight="270">
+                                    <VBox Spacing="0">
+                                        <Label Name="slot1Title" Text="Slot I" Class="slotname" TextAlign="Center"/>
+                                        <Spacer Height="12"/>
+                                        <Border Class="slotpanel" Padding="16,14">
+                                            <VBox Spacing="14">
+                                                <HBox Spacing="12" Slot.HAlign="Center">
+                                                    <Image Source="icons/orb.png" Width="44" Height="44"
+                                                           Stretch="Fit" Slot.VAlign="Center"/>
+                                                    <Label Name="slot1Orbs" Text="-" Class="slotvalue" Slot.VAlign="Center"/>
+                                                </HBox>
+                                                <HBox Spacing="12" Slot.HAlign="Center">
+                                                    <Image Source="icons/statue.png" Width="44" Height="44"
+                                                           Stretch="Fit" Slot.VAlign="Center"/>
+                                                    <Label Name="slot1Statues" Text="-" Class="slotvalue" Slot.VAlign="Center"/>
+                                                </HBox>
+                                            </VBox>
+                                        </Border>
+                                        <Spacer Slot.Fill="1"/>
+                                        <Label Name="slot1Date" Text="" Class="slotdate" TextAlign="Center"/>
+                                        <Spacer Height="4"/>
+                                        <Label Name="slot1Played" Text="" Class="slotplayed" TextAlign="Center"/>
+                                        <Spacer Height="8"/>
+                                        <Label Name="slot1Meta" Text="" Class="meta" TextAlign="Center" Wrap="true"/>
+                                        <Spacer Height="10"/>
+                                        <Button Text="Load" Class="slotload" OnClicked="loadSlot1"/>
+                                    </VBox>
+                                </Border>
+
+                                <Border Name="slot2" Class="slotcard" Padding="16,14" MinHeight="270" Slot.Column="1">
+                                    <VBox Spacing="0">
+                                        <Label Name="slot2Title" Text="Slot II" Class="slotname" TextAlign="Center"/>
+                                        <Spacer Height="12"/>
+                                        <Border Class="slotpanel" Padding="16,14">
+                                            <VBox Spacing="14">
+                                                <HBox Spacing="12" Slot.HAlign="Center">
+                                                    <Image Source="icons/orb.png" Width="44" Height="44"
+                                                           Stretch="Fit" Slot.VAlign="Center"/>
+                                                    <Label Name="slot2Orbs" Text="-" Class="slotvalue" Slot.VAlign="Center"/>
+                                                </HBox>
+                                                <HBox Spacing="12" Slot.HAlign="Center">
+                                                    <Image Source="icons/statue.png" Width="44" Height="44"
+                                                           Stretch="Fit" Slot.VAlign="Center"/>
+                                                    <Label Name="slot2Statues" Text="-" Class="slotvalue" Slot.VAlign="Center"/>
+                                                </HBox>
+                                            </VBox>
+                                        </Border>
+                                        <Spacer Slot.Fill="1"/>
+                                        <Label Name="slot2Date" Text="" Class="slotdate" TextAlign="Center"/>
+                                        <Spacer Height="4"/>
+                                        <Label Name="slot2Played" Text="" Class="slotplayed" TextAlign="Center"/>
+                                        <Spacer Height="8"/>
+                                        <Label Name="slot2Meta" Text="" Class="meta" TextAlign="Center" Wrap="true"/>
+                                        <Spacer Height="10"/>
+                                        <Button Text="Load" Class="slotload" OnClicked="loadSlot2"/>
+                                    </VBox>
+                                </Border>
+
+                                <Border Name="slot3" Class="slotcard" Padding="16,14" MinHeight="270" Slot.Column="2">
+                                    <VBox Spacing="0">
+                                        <Label Name="slot3Title" Text="Slot III" Class="slotname" TextAlign="Center"/>
+                                        <Spacer Height="12"/>
+                                        <Border Class="slotpanel" Padding="16,14">
+                                            <VBox Spacing="14">
+                                                <HBox Spacing="12" Slot.HAlign="Center">
+                                                    <Image Source="icons/orb.png" Width="44" Height="44"
+                                                           Stretch="Fit" Slot.VAlign="Center"/>
+                                                    <Label Name="slot3Orbs" Text="-" Class="slotvalue" Slot.VAlign="Center"/>
+                                                </HBox>
+                                                <HBox Spacing="12" Slot.HAlign="Center">
+                                                    <Image Source="icons/statue.png" Width="44" Height="44"
+                                                           Stretch="Fit" Slot.VAlign="Center"/>
+                                                    <Label Name="slot3Statues" Text="-" Class="slotvalue" Slot.VAlign="Center"/>
+                                                </HBox>
+                                            </VBox>
+                                        </Border>
+                                        <Spacer Slot.Fill="1"/>
+                                        <Label Name="slot3Date" Text="" Class="slotdate" TextAlign="Center"/>
+                                        <Spacer Height="4"/>
+                                        <Label Name="slot3Played" Text="" Class="slotplayed" TextAlign="Center"/>
+                                        <Spacer Height="8"/>
+                                        <Label Name="slot3Meta" Text="" Class="meta" TextAlign="Center" Wrap="true"/>
+                                        <Spacer Height="10"/>
+                                        <Button Text="Load" Class="slotload" OnClicked="loadSlot3"/>
+                                    </VBox>
+                                </Border>
+                            </Grid>
+                        </VBox>
+
+                        <!-- ========================= Progression -->
+                        <VBox Name="pageProgression" Spacing="14">
+                            <UniformGrid Columns="3" Spacing="12" MinCellSize="220,0">
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/missions.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Missions complete" Class="hint"/>
+                                            <Label Name="statMissions" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/levels.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Levels complete" Class="hint"/>
+                                            <Label Name="statLevels" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/powers.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Dream powers" Class="hint"/>
+                                            <Label Name="statPowers" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/skins.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Character skins" Class="hint"/>
+                                            <Label Name="statSkins" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/ornaments.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Ornaments" Class="hint"/>
+                                            <Label Name="statOrnaments" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/music.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Music tracks" Class="hint"/>
+                                            <Label Name="statMusic" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/challenges.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Center"/>
+                                        <VBox Spacing="4" Slot.VAlign="Center">
+                                            <Label Text="Challenges done" Class="hint"/>
+                                            <Label Name="statChallenges" Text="-" Class="stat"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                            </UniformGrid>
+                        </VBox>
+
+                        <!-- ============================ Currency -->
+                        <VBox Name="pageCurrency" Spacing="14">
+                            <UniformGrid Columns="3" Spacing="12" MinCellSize="220,0">
+                                <Border Class="card" Padding="16">
+                                    <VBox Spacing="4">
+                                        <Label Text="XP available" Class="hint"/>
+                                        <Label Name="xpAvailable" Text="-" Class="stat"/>
+                                    </VBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <VBox Spacing="4">
+                                        <Label Text="XP earned" Class="hint"/>
+                                        <Label Name="xpEarned" Text="-" Class="stat"/>
+                                    </VBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <VBox Spacing="4">
+                                        <Label Text="XP spent" Class="hint"/>
+                                        <Label Name="xpSpent" Text="-" Class="stat"/>
+                                    </VBox>
+                                </Border>
+                            </UniformGrid>
+
+                            <Border Class="card" Padding="16">
+                                <VBox Spacing="14">
+                                    <Label Text="**Give XP**" Markdown="true" TextSize="14"/>
+                                    <Label Text="XP is one shared pool that all three tracks show: what story missions and challenges earned, minus what the tracks have spent. A negative amount takes XP away."
+                                           Class="hint" Wrap="true"/>
+                                    <HBox Spacing="8">
+                                        <TextInput Name="xpDelta" Placeholder="+10000" Slot.Fill="1"/>
+                                        <Button Style="Primary" OnClicked="addXp" Tooltip="Apply"
+                                                Width="48">
+                                            <Image Source="icons/plus.png" Width="16" Height="16"
+                                                   Stretch="Fit" Slot.HAlign="Center" Slot.VAlign="Center"/>
+                                        </Button>
+                                    </HBox>
+                                </VBox>
+                            </Border>
+
+                            <Label Text="Spent per track" Class="hint"/>
+                            <Label Name="xpTracks" Text="" Wrap="true"/>
+                        </VBox>
+
+                        <!-- ============================= Unlocks -->
+                        <VBox Name="pageUnlocks" Spacing="14">
+                            <UniformGrid Columns="2" Spacing="12" MinCellSize="280,0">
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/skins.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Top" Slot.Padding="0,2,0,0"/>
+                                        <VBox Spacing="8" Slot.Fill="1">
+                                            <Label Text="**Unlock skins**" Markdown="true" TextSize="14"/>
+                                            <Label Text="Every character skin, including the ones tied to ornaments." Class="hint" Wrap="true"/>
+                                            <Button Text="Unlock skins" Style="Primary" OnClicked="unlockSkins"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/powers.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Top" Slot.Padding="0,2,0,0"/>
+                                        <VBox Spacing="8" Slot.Fill="1">
+                                            <Label Text="**Unlock dream powers**" Markdown="true" TextSize="14"/>
+                                            <Label Text="Every dream power, without spending blue coins." Class="hint" Wrap="true"/>
+                                            <Button Text="Unlock powers" Style="Primary" OnClicked="unlockPowers"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/unlock-collectibles.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Top" Slot.Padding="0,2,0,0"/>
+                                        <VBox Spacing="8" Slot.Fill="1">
+                                            <Label Text="**Ornaments and music**" Markdown="true" TextSize="14"/>
+                                            <Label Text="All ornaments and every jukebox track." Class="hint" Wrap="true"/>
+                                            <Button Text="Unlock collectibles" Style="Primary" OnClicked="unlockCollectibles"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/unlock-missions.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Top" Slot.Padding="0,2,0,0"/>
+                                        <VBox Spacing="8" Slot.Fill="1">
+                                            <Label Text="**All missions**" Markdown="true" TextSize="14"/>
+                                            <Label Text="Marks every mission of every level complete." Class="hint" Wrap="true"/>
+                                            <Button Text="Complete missions" Style="Primary" OnClicked="completeMissions"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/unlock-rewards.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Top" Slot.Padding="0,2,0,0"/>
+                                        <VBox Spacing="8" Slot.Fill="1">
+                                            <Label Text="**Collect rewards**" Markdown="true" TextSize="14"/>
+                                            <Label Text="Marks every reward of the three tracks as collected." Class="hint" Wrap="true"/>
+                                            <Button Text="Collect rewards" Style="Primary" OnClicked="collectRewards"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                                <Border Class="card" Padding="16">
+                                    <HBox Spacing="12">
+                                        <Image Source="icons/unlock-reset.png" Width="40" Height="40" Stretch="Fit"
+                                               Slot.VAlign="Top" Slot.Padding="0,2,0,0"/>
+                                        <VBox Spacing="8" Slot.Fill="1">
+                                            <Label Text="**Reset missions**" Markdown="true" TextSize="14"/>
+                                            <Label Text="Sends every mission back to incomplete. This one undoes a lot." Class="hint" Wrap="true"/>
+                                            <Button Text="Reset missions" Style="Flat" OnClicked="resetMissions"/>
+                                        </VBox>
+                                    </HBox>
+                                </Border>
+                            </UniformGrid>
+                        </VBox>
+
+                        <!-- ================================ JSON -->
+                        <VBox Name="pageJson" Slot.Fill="1" Spacing="10" MinHeight="360">
+                            <HBox Spacing="8">
+                                <Label Text="Game save JSON" Slot.Fill="1" Slot.VAlign="Center"/>
+                                <Button Text="Refresh" Style="Flat" OnClicked="refreshJson"/>
+                                <Button Text="Apply JSON" Style="Primary" OnClicked="applyJson"/>
+                            </HBox>
+                            <TextEditor Name="json" Language="JSON" Slot.Fill="1" MinHeight="320"
+                                        Placeholder="Load a save to see the game's JSON here"/>
+                        </VBox>
+
+                        <!-- =============================== About -->
+                        <VBox Name="pageAbout" Spacing="10">
+                            <Border Class="card" Padding="14">
+                                <HBox Spacing="14">
+                                    <Image Source="icons/about.png" Width="56" Height="56" Stretch="Fit"
+                                           Slot.VAlign="Top"/>
+                                    <VBox Spacing="6" Slot.Fill="1">
+                                        <HBox Spacing="8">
+                                            <Label Text="Dream Save Editor" TextSize="18"/>
+                                            <Label Text="by Aris, aka ArisXyn" Class="hint" Slot.VAlign="Center"/>
+                                        </HBox>
+                                        <Label Text="A save editor for Sonic Dream Team, made for the Project Dream PC port. It opens the game's save file, shows you what is unlocked in each of the three slots, and writes your changes back the same way the game does."
+                                               Class="hint" Wrap="true"/>
+                                    </VBox>
+                                </HBox>
+                            </Border>
+
+                            <UniformGrid Columns="2" Spacing="12" MinCellSize="280,0">
+                                <Border Class="card" Padding="14">
+                                    <VBox Spacing="6">
+                                        <Label Text="**What it does**" Markdown="true" TextSize="14"/>
+                                        <Label Text="Edit your progress, currency, XP and unlocks. If you need something the editor doesn't cover yet, the raw JSON is there for it."
+                                               Class="hint" Wrap="true"/>
+                                    </VBox>
+                                </Border>
+                                <Border Class="card" Padding="14">
+                                    <VBox Spacing="6">
+                                        <Label Text="**Why it exists**" Markdown="true" TextSize="14"/>
+                                        <Label Text="I built it to learn Raven, the UI toolkit it's drawn with. The editor was the excuse; the toolkit was the point."
+                                               Class="hint" Wrap="true"/>
+                                    </VBox>
+                                </Border>
+                            </UniformGrid>
+
+                            <Border Class="card" Padding="14">
+                                <VBox Spacing="10">
+                                    <Label Text="**Powered by**" Markdown="true" TextSize="14"
+                                           Slot.HAlign="Center"/>
+                                    <!-- A chip each, tinted with that project's own colour,
+                                         the heading and the pair centred so neither side
+                                         sits pinned to an edge of the card. -->
+                                    <HBox Spacing="10" Slot.HAlign="Center">
+                                        <Border Background="#F64D0022" BorderColor="#F64D0066" BorderWidth="1"
+                                                CornerRadius="12" Padding="12,8">
+                                            <HBox Spacing="10">
+                                                <Image Source="icons/rust.png" Width="32" Height="32" Stretch="Fit"
+                                                       Slot.VAlign="Center"/>
+                                                <VBox Spacing="1" Slot.VAlign="Center">
+                                                    <Label Text="Rust"/>
+                                                    <Label Text="Reads and writes the save file" Class="hint"/>
+                                                </VBox>
+                                            </HBox>
+                                        </Border>
+                                        <Border Background="#DD000B22" BorderColor="#DD000B66" BorderWidth="1"
+                                                CornerRadius="12" Padding="12,8">
+                                            <HBox Spacing="10">
+                                                <Image Source="icons/raven.png" Width="32" Height="32" Stretch="Fit"
+                                                       Slot.VAlign="Center"/>
+                                                <VBox Spacing="1" Slot.VAlign="Center">
+                                                    <Label Text="Raven"/>
+                                                    <Label Text="Draws everything you see here" Class="hint"/>
+                                                </VBox>
+                                            </HBox>
+                                        </Border>
+                                        <Spacer Slot.Fill="1"/>
+                                    </HBox>
+                                </VBox>
+                            </Border>
+
+                            <Border Class="card" Padding="14">
+                                <VBox Spacing="12">
+                                    <Label Text="**Elsewhere**" Markdown="true" TextSize="14"/>
+                                    <!-- The badges come from each platform's own asset
+                                         pack, so each one says what following it does. -->
+                                    <UniformGrid Columns="3" Spacing="10">
+                                        <Button Style="Flat" OnClicked="openYoutube" Tooltip="YouTube: @Swifty-i4n"
+                                                Metric.PaddingX="0" Metric.PaddingY="0">
+                                            <Image Source="icons/youtube.png" Width="196" Height="65" Stretch="Fit"/>
+                                        </Button>
+                                        <Button Style="Flat" OnClicked="openTiktok" Tooltip="TikTok: @swiftyaris"
+                                                Metric.PaddingX="0" Metric.PaddingY="0">
+                                            <Image Source="icons/tiktok.png" Width="196" Height="65" Stretch="Fit"/>
+                                        </Button>
+                                        <Button Style="Flat" OnClicked="openInstagram" Tooltip="Instagram: @eltondavin"
+                                                Metric.PaddingX="0" Metric.PaddingY="0">
+                                            <Image Source="icons/instagram.png" Width="196" Height="65" Stretch="Fit"/>
+                                        </Button>
+                                        <Button Style="Flat" OnClicked="openX" Tooltip="X: @SwiftAvos"
+                                                Metric.PaddingX="0" Metric.PaddingY="0">
+                                            <Image Source="icons/x.png" Width="196" Height="65" Stretch="Fit"/>
+                                        </Button>
+                                        <Button Style="Flat" OnClicked="openDiscord" Tooltip="Discord: join the server"
+                                                Metric.PaddingX="0" Metric.PaddingY="0">
+                                            <Image Source="icons/discord.png" Width="196" Height="65" Stretch="Fit"/>
+                                        </Button>
+                                        <Button Style="Flat" OnClicked="openGithub" Tooltip="GitHub: ArisSwift"
+                                                Metric.PaddingX="0" Metric.PaddingY="0">
+                                            <Image Source="icons/github.png" Width="196" Height="65" Stretch="Fit"/>
+                                        </Button>
+                                    </UniformGrid>
+                                </VBox>
+                            </Border>
+
+                            <Label Text="I'm not affiliated with SEGA or Sonic Team. Sonic Dream Team, its art, its icons and its logo all belong to them. Every icon and the logo in this editor come from the game."
+                                   Class="hint" Wrap="true"/>
+                        </VBox>
+
+                    </VBox>
+                </ScrollBox>
+            </VBox>
+        </HBox>
 
         <Separator/>
-        <HBox Spacing="8">
-            <Label Name="status" Text="No save loaded." Slot.Fill="1" Opacity="0.85"/>
-            <Label Name="dirty" Text="" Opacity="0.85"/>
+        <HBox Spacing="10" Slot.Padding="16,8">
+            <Label Name="status" Text="No save loaded." Slot.Fill="1"/>
+            <Label Name="dirty" Text=""/>
         </HBox>
     </VBox>
 </Window>

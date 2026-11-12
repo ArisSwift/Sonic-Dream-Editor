@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The look of the editor: near-black surfaces, one blue accent, cards a shade
+  lighter than the window. Raven watches this file, so saving it restyles the
+  running window without a rebuild.
+-->
+<Theme Name="Dream" Look="RavenDark" Accent="#3B82F6" CornerRadius="8">
+	<Colors Window="#17181A"
+	        Panel="#232427"
+	        Header="#1C1D1F"
+	        Popup="#202124"
+	        PopupBorder="#33353A"
+	        Border="#2A2C30"
+	        Text="#E6E7E9"
+	        TextDisabled="#85888E"
+	        TextPlaceholder="#6E7178"
+	        Accent="#3B82F6"
+	        AccentHovered="#5C9CFB"
+	        AccentPressed="#2F6BD0"
+	        AccentText="#FFFFFF"
+	        Control="#26272B"
+	        ControlHovered="#2E3035"
+	        ControlPressed="#36393F"
+	        ControlBorder="#3A3D43"
+	        Input="#1B1C1F"
+	        Focus="#3B82F6"
+	        Selection="#2B5F9E"
+	        RowHovered="#FFFFFF0A"
+	        Separator="#FFFFFF14"
+	        TabActive="#2B5F9E"
+	        Switch="#3B82F6"
+	        Link="#6AA7FF"
+	        Success="#22C55E"
+	        Warning="#F59E0B"
+	        Danger="#EF4444"/>
+	<Metrics FontSize="13"
+	         ControlHeight="32"
+	         Spacing="8"
+	         PaddingX="12"
+	         PaddingY="8"
+	         CornerRadius="8"
+	         PopupRadius="10"
+	         CheckSize="18"
+	         RowHeight="30"/>
+
+	<!-- A card: one block of the content, on its own slightly lighter surface. -->
+	<Style Class="card" Panel="#232427" Border="#2A2C30" CornerRadius="12"/>
+	<!-- The card of the page being worked on, and the rail entry of the page shown. -->
+	<Style Class="cardon" Panel="#232427" Border="#3B82F6" CornerRadius="12"/>
+	<Style Widget="Button" Class="nav" Control="#00000000" ControlHovered="#FFFFFF0D"
+	       ControlPressed="#FFFFFF14" ControlBorder="#00000000" Foreground="#A9ACB2" CornerRadius="8"/>
+	<Style Widget="Button" Class="navon" Background="#2B5F9E" ControlHovered="#33699F"
+	       ControlPressed="#2B5F9E" ControlBorder="#00000000" Foreground="#FFFFFF" CornerRadius="8"/>
+	<!-- Small capitals above a group, the way the reference labels its rail. -->
+	<Style Class="eyebrow" Text="#8A9099" FontSize="11"/>
+	<Style Class="meta" Text="#8A9099" FontSize="11"/>
+	<!-- The number on a card. -->
+	<Style Class="stat" FontSize="22" Text="#FFFFFF"/>
+	<Style Class="hint" Text="#9AA0A7" FontSize="12"/>
+	<Style Class="topbar" Panel="#1C1D1F"/>
+	<Style Class="rail" Panel="#1A1B1D"/>
+	<Style Class="page" Panel="#17181A"/>
+
+	<!-- The saved-games card: a deep blue slab with a translucent well inside
+	     it, the same proportions as the game's own card (400x625 at 1080p) with
+	     the editor's blue in place of the game's purple. -->
+	<Style Class="slotcard" Panel="#1D4ED8" Border="#1D4ED8" CornerRadius="20"/>
+	<!-- The frame of the slot being edited is set from code: a theme style can
+	     colour a border but not give it a width. -->
+	<Style Class="slotpanel" Panel="#071230D9" CornerRadius="12"/>
+	<Style Class="slotname" Text="#FFFFFF" FontSize="26"/>
+	<Style Class="slotvalue" Text="#FFFFFF" FontSize="26"/>
+	<Style Class="slotdate" Text="#FED00A" FontSize="15"/>
+	<Style Class="slotplayed" Text="#FFFFFF" FontSize="15"/>
+	<!-- The Load button of a card: a soft white veil on the blue, so the accent
+	     stays for the one primary action at the top of the window. -->
+	<Style Widget="Button" Class="slotload" Control="#FFFFFF1A" ControlHovered="#FFFFFF30"
+	       ControlPressed="#FFFFFF42" ControlBorder="#FFFFFF26" Foreground="#FFFFFF" CornerRadius="10"/>
+</Theme>

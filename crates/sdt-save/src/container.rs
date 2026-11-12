@@ -42,7 +42,16 @@ pub mod property {
     pub const LAST_SAVED_TICKS: u32 = 2_370_327_302;
     pub const SESSION: u32 = 3_233_545_909;
     pub const NOTIFICATIONS: u32 = 1_953_936_914;
+    /// Which slot the game last used, as a small int. It held `0` while only one
+    /// save existed and `2` after the third was made.
+    pub const ACTIVE_SLOT: u32 = 3_764_495_936;
 }
+
+/// One game save per slot, all inside the same file: the game writes slot 1 as
+/// `SAVE_DATA_GAME` and slots 2 and 3 as these ids, in slot order. Both were
+/// observed appearing in the file the moment slots 2 and 3 were created; the
+/// ids themselves have not been matched back to a name in the game binary.
+pub const SLOT_IDS: [u32; 3] = [property::SAVE_DATA_GAME, 3_009_895_927, 711_855_181];
 
 #[derive(Debug, Error)]
 pub enum ContainerError {

@@ -21,6 +21,11 @@ pub enum SaveError {
 pub struct Progress {
     pub missions_complete: usize,
     pub missions_total: usize,
+    /// The "orbs" line of the game's saved-games card: one orb per mission that
+    /// granted XP (a stage clear, twice over for a five-red-star clear). A
+    /// mission that was never played can still carry XP in the file, so an entry
+    /// only counts once it has an attempt behind it.
+    pub orbs: usize,
     pub levels_complete: usize,
     pub levels_total: usize,
     pub dream_powers_owned: usize,
@@ -36,6 +41,36 @@ pub struct Progress {
     /// The shared XP pool: earned, the three tracks' spends, and the balance.
     pub xp: XpAccount,
     pub challenges_completed: u64,
+    /// The game's own "Played" clock: `m_playerStats` type 0, in milliseconds.
+    pub playtime_ms: i64,
+    /// When the game last wrote the slot: `m_lastSavedTimestampMs`, Unix ms.
+    pub last_saved_ms: i64,
+}
+
+impl Progress {
+    /// The "Played" clock the game's load screen shows: `4 h 10 m`, `12 m`.
+    pub fn playtime(&self) -> String {
+        let seconds = self.playtime_ms / 1000;
+        let (hours, minutes, seconds) = (seconds / 3600, (seconds / 60) % 60, seconds % 60);
+        if hours > 0 {
+            format!("{hours} h {minutes:02} m")
+        } else if minutes > 0 {
+            format!("{minutes} m {seconds:02} s")
+        } else {
+            format!("{seconds} s")
+        }
+    }
+
+    /// The Played clock as the game's card prints it: `04:10:14`.
+    pub fn clock(&self) -> String {
+        let seconds = self.playtime_ms.max(0) / 1000;
+        format!(
+            "{:02}:{:02}:{:02}",
+            seconds / 3600,
+            (seconds / 60) % 60,
+            seconds % 60
+        )
+    }
 }
 
 /// The game stores reward-track XP split over two fields: the major one counts
@@ -167,6 +202,17 @@ impl GameSave {
                     } else {
                         all = false;
                     }
+                    let earned = mission
+                        .get("m_xpEarned")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0);
+                    let attempts = mission
+                        .get("m_attempts")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0);
+                    if earned > 0 && attempts > 0 {
+                        p.orbs += 1;
+                    }
                 }
                 if all && missions.map_or(false, |m| !m.is_empty()) {
                     p.levels_complete += 1;
@@ -199,6 +245,21 @@ impl GameSave {
         p.challenges_completed = self
             .pointer("/m_challenges/m_challengesCompleted")
             .and_then(Value::as_u64)
+            .unwrap_or(0);
+        p.playtime_ms = self
+            .array("m_playerStats")
+            .and_then(|stats| {
+                stats.iter().find(|stat| {
+                    stat.get("m_playerStatType").and_then(Value::as_i64) == Some(0)
+                })
+            })
+            .and_then(|stat| stat.get("m_playerStatCounter"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        p.last_saved_ms = self
+            .root
+            .get("m_lastSavedTimestampMs")
+            .and_then(Value::as_i64)
             .unwrap_or(0);
 
         p
@@ -339,14 +400,6 @@ impl GameSave {
         self.xp().available()
     }
 
-    /// Give `amount` blue coins to the balance (a negative amount takes them away)
-    /// by moving the spend counter the other way. Returns the new counter.
-    pub fn give_blue_coins(&mut self, amount: i64) -> i64 {
-        let spent = (self.blue_coins_spent() - amount).clamp(i32::MIN as i64, i32::MAX as i64);
-        self.set_number("/m_blueCoins/m_spent", json!(spent));
-        spent
-    }
-
     /// Write any JSON value at an RFC 6901 pointer, creating nothing that does not exist.
     pub fn set_value(&mut self, pointer: &str, value: Value) -> Result<(), SaveError> {
         match self.root.pointer_mut(pointer) {
@@ -464,7 +517,12 @@ mod tests {
                 {"m_type": 2054273620, "m_spentXP": 900, "m_spentXPMinor": 0, "m_rewards": []},
                 {"m_type": -1400767250, "m_spentXP": 925, "m_spentXPMinor": 50, "m_rewards": []}
             ]
-        }
+        },
+        "m_playerStats": [
+            {"m_playerStatType": 0, "m_playerStatCounter": 15014197},
+            {"m_playerStatType": 1, "m_playerStatCounter": 681}
+        ],
+        "m_lastSavedTimestampMs": 1794434735002
     }"#;
 
     #[test]
@@ -488,6 +546,9 @@ mod tests {
         assert_eq!(p.xp.pending_bonus, 10_000);
         assert_eq!(p.xp.tracks.len(), 3);
         assert_eq!(p.xp.spent_breakdown(), "Adventure 70,000 · Shadow 90,000 · Outfits 92,550");
+        // What the game's own load screen shows for this slot.
+        assert_eq!(p.playtime(), "4 h 10 m");
+        assert_eq!(p.last_saved_ms, 1_794_434_735_002);
     }
 
     #[test]

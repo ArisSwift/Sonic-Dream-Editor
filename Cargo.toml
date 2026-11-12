@@ -11,6 +11,7 @@ authors = ["Aris Swift"]
 [workspace.dependencies]
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc", "block-padding"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = "2"
